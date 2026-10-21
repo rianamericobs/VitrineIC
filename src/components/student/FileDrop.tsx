@@ -1,31 +1,31 @@
 import { useRef } from "react";
+import { useVitrine, uploadAttachment, deleteAttachment } from "@/lib/store";
+import type { Attachment } from "@/types/api";
 
 /**
  * Lista de arquivos anexados mais a área tracejada para anexar outros.
- * Guarda só os nomes, como o restante do onboarding.
+ * Arquivos privados persistidos no servidor, separados por categoria.
  */
 export function FileDrop({
   title,
   hint,
   accept,
-  files,
-  onAdd,
-  onRemove,
+  category,
 }: {
   title: string;
   hint: string;
   accept: string;
-  files: string[];
-  onAdd: (names: string[]) => void;
-  onRemove: (index: number) => void;
+  category: Attachment["category"];
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const { attachments } = useVitrine();
+  const files = attachments.filter(a => a.category === category);
 
   return (
     <div className="flex flex-col gap-2">
-      {files.map((name, i) => (
+      {files.map(({ name, id }) => (
         <div
-          key={`${name}-${i}`}
+          key={id}
           className="flex items-center justify-between gap-3 rounded-[10px] border border-navy/13 bg-white px-4 py-3"
         >
           <span className="flex min-w-0 items-center gap-3">
@@ -33,11 +33,11 @@ export function FileDrop({
               <rect x="2.5" y="1" width="9" height="12" rx="1" stroke="currentColor" strokeWidth="1.1" />
               <path d="M5 4.5h4M5 7h4M5 9.5h2.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
             </svg>
-            <span className="truncate font-mono text-[11px] text-navy">{name}</span>
+            <a href={`/api/attachments/${id}`} className="truncate font-mono text-[11px] text-navy underline">{name}</a>
           </span>
           <button
             type="button"
-            onClick={() => onRemove(i)}
+            onClick={() => void deleteAttachment(id)}
             aria-label={`Remover ${name}`}
             className="grid size-7 shrink-0 place-items-center rounded-md text-navy/55 transition-colors hover:bg-navy/5 hover:text-navy"
           >
@@ -66,9 +66,10 @@ export function FileDrop({
         accept={accept}
         multiple
         className="hidden"
-        onChange={(e) => {
-          onAdd(Array.from(e.target.files || []).map((f) => f.name));
+        onChange={async (e) => {
+          const selected = Array.from(e.target.files || []);
           e.target.value = "";
+          for (const file of selected) { if (!await uploadAttachment(category, file)) break; }
         }}
       />
     </div>

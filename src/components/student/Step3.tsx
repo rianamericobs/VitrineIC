@@ -11,7 +11,6 @@ export function Step3({
   setData: (d: Partial<ProfileDraft>) => void;
 }) {
   const languages = data.languages;
-  const certsLang = data.certificadosLang;
 
   return (
     <div className="flex flex-col gap-10">
@@ -26,9 +25,7 @@ export function Step3({
           title="Anexar certificado de idioma (TOEFL, IELTS…)"
           hint="PDF"
           accept=".pdf"
-          files={certsLang}
-          onAdd={(names) => setData({ certificadosLang: [...certsLang, ...names] })}
-          onRemove={(idx) => setData({ certificadosLang: certsLang.filter((_, i) => i !== idx) })}
+          category="language"
         />
       </div>
     </div>

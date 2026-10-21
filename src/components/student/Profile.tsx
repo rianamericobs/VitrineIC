@@ -11,7 +11,6 @@ import { PAGE } from "@/components/public/layout";
 import { UNITS, findUnit } from "@/data/institution";
 import { LANGUAGE_LEVELS } from "@/data/languages";
 import { LEVELS } from "@/data/skills";
-import { renameAccount } from "@/lib/auth";
 import { BIO_MAX, fromDraft, isProfileVisible, toDraft, type ProfileDraft } from "@/lib/profile";
 import { updateStudent } from "@/lib/store";
 import { digits, first, maxLength, required, useValidation } from "@/lib/validate";
@@ -69,10 +68,9 @@ export function Profile({
     setEditing(true);
   };
 
-  const save = () => {
+  const save = async () => {
     if (!validate()) return;
-    updateStudent(student.id, fromDraft(data));
-    if (data.name.trim() !== student.name) renameAccount(data.name);
+    if (!await updateStudent(student.id, fromDraft(data))) return;
     setEditing(false);
   };
 

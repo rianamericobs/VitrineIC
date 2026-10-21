@@ -28,10 +28,6 @@ export interface ProfileDraft {
   linkedin: string;
   site: string;
   lattes: string;
-  /** Nomes dos arquivos anexados; não saem do navegador. */
-  certificadosTech: string[];
-  certificadosLang: string[];
-  docs: string[];
 }
 
 export const BIO_MAX = 280;
@@ -52,9 +48,6 @@ export function toDraft(s: Student): ProfileDraft {
     linkedin: s.linkedin ?? "",
     site: s.site ?? "",
     lattes: s.lattes ?? "",
-    certificadosTech: [],
-    certificadosLang: [],
-    docs: [],
   };
 }
 
@@ -66,8 +59,8 @@ export function fromDraft(d: ProfileDraft): Partial<Student> {
     initials: ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase(),
     unit: d.unit,
     course: d.course,
-    photo: d.photo || undefined,
-    matricula: d.matricula.trim() || undefined,
+    photo: d.photo,
+    matricula: d.matricula.trim(),
     semester: d.semester,
     bio: d.bio.trim(),
     interests: d.interests,
@@ -75,8 +68,8 @@ export function fromDraft(d: ProfileDraft): Partial<Student> {
     skillLevels: Object.fromEntries(d.skills.map((s) => [s.name, s.level])) as Partial<Record<string, SkillLevel>>,
     languages: d.languages,
     github: d.github.trim(),
-    linkedin: d.linkedin.trim() || undefined,
-    site: d.site.trim() || undefined,
-    lattes: d.lattes.trim() || undefined,
+    linkedin: d.linkedin.trim(),
+    site: d.site.trim(),
+    lattes: d.lattes.trim(),
   };
 }

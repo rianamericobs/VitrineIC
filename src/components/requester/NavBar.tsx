@@ -1,6 +1,5 @@
 import { AreaNav } from "@/components/app/AreaNav";
 import { UpdatesMenu } from "@/components/app/UpdatesMenu";
-import { REQUESTER_UPDATES } from "@/data/updates";
 import { useSession } from "@/lib/auth";
 
 /**
@@ -38,7 +37,7 @@ export function NavBar({
       onInbox={() => setView("inbox")}
       inboxDot={unreadCount > 0}
       inboxActive={view === "inbox"}
-      bell={<UpdatesMenu initial={REQUESTER_UPDATES} onOpen={setView} />}
+      bell={<UpdatesMenu onOpen={setView} />}
       onExit={onBack}
     />
   );

@@ -1,209 +1,95 @@
-/**
- * Estado compartilhado do protótipo: estudantes, solicitantes, contas, sessão,
- * demandas, interesses e o selo "em projeto". Fica fora dos componentes para
- * que uma candidatura feita na área do estudante apareça na do solicitante e
- * na da curadoria.
- *
- * SIMULAÇÃO: cada mudança é salva no localStorage (`@/lib/persist`), então
- * recarregar a página mantém contas, sessão e interesses. `resetDemo()` volta
- * aos dados de `@/data`.
- */
-
+/** Cache da API. O banco e as decisões de autorização ficam no servidor. */
 import { useSyncExternalStore } from "react";
-import { DEMO_ACCOUNTS } from "@/data/accounts";
-import { COMPANIES, type Company } from "@/data/companies";
-import { DEMANDS } from "@/data/demands";
-import { INTERESTS } from "@/data/interests";
-import { STUDENTS } from "@/data/students";
-import { initialStatus, nextStatus } from "./interest";
-import { load, reset, save } from "./persist";
-import type {
-  Account,
-  Demand,
-  DemandStatus,
-  Interest,
-  InterestOrigin,
-  InterestSide,
-  Student,
-} from "@/types";
+import { api } from "./api";
+import type { Company } from "@/data/companies";
+import type { Demand, DemandStatus, Interest, InterestOrigin, InterestSide, Student, StudentProject } from "@/types";
+import type { VitrineState } from "@/types/api";
+export type { VitrineState } from "@/types/api";
 
-export interface Session {
-  accountId: string;
-}
-
-export interface VitrineState {
-  students: Student[];
-  companies: Company[];
-  accounts: Account[];
-  session: Session | null;
-  demands: Demand[];
-  interests: Interest[];
-  /** Selo "em projeto" por id de estudante. */
-  inProject: Record<string, boolean>;
-}
-
-function seed(): VitrineState {
-  return {
-    students: STUDENTS,
-    companies: COMPANIES,
-    accounts: DEMO_ACCOUNTS,
-    session: null,
-    demands: DEMANDS,
-    interests: INTERESTS,
-    inProject: Object.fromEntries(STUDENTS.map((s) => [s.id, !!s.inProject])),
-  };
-}
-
-let state: VitrineState = { ...seed(), ...load<Partial<VitrineState>>() };
-
+let state: VitrineState = {
+  students: [], companies: [], accounts: [], session: null, demands: [], interests: [], inProject: {}, notifications: [], attachments: [], demo: false,
+  auth: { emailEnabled: false, verificationRequired: false },
+  impact: { released: 0, projects: 0, demands: 0, students: 0, byArea: [], byCourse: [] },
+};
+let connection = { ready: false, pending: 0, error: "" };
 const listeners = new Set<() => void>();
+const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
+const emit = () => listeners.forEach(l => l());
+export const useVitrine = () => useSyncExternalStore(subscribe, () => state);
+export const useConnection = () => useSyncExternalStore(subscribe, () => connection);
+export const getState = () => state;
+export function replaceState(next: VitrineState) { state = next; emit(); }
+export function clearError() { connection = { ...connection, error: "" }; emit(); }
 
-function update(patch: Partial<VitrineState>) {
-  state = { ...state, ...patch };
-  save(state);
-  listeners.forEach((l) => l());
+let queue: Promise<unknown> = Promise.resolve();
+/** Serializa respostas para impedir que uma leitura antiga sobrescreva uma alteração. */
+export function runAction<T>(action: () => Promise<T>): Promise<T | undefined> {
+  connection = { ...connection, pending: connection.pending + 1, error: "" };
+  emit();
+  const task = queue.then(action).catch((error: unknown) => {
+    connection = { ...connection, error: error instanceof Error ? error.message : "Não foi possível salvar. Tente novamente." };
+    return undefined;
+  }).finally(() => { connection = { ...connection, pending: connection.pending - 1 }; emit(); });
+  queue = task;
+  return task;
 }
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+export function refreshState() {
+  return runAction(async () => {
+    replaceState(await api<VitrineState>("/state"));
+    connection = { ...connection, ready: true };
+  });
 }
-
-export function useVitrine() {
-  return useSyncExternalStore(subscribe, () => state);
+export async function mutate(path: string, method: string, body?: unknown) {
+  return runAction(async () => { replaceState(await api<VitrineState>(path, { method, body })); return true; });
 }
-
-/** Leitura e escrita cruas, para `@/lib/auth`. */
-export function getState() {
-  return state;
-}
-
-export function patchState(patch: Partial<VitrineState>) {
-  update(patch);
-}
-
-/** Apaga o que foi salvo neste navegador e volta aos dados de exemplo. */
-export function resetDemo() {
-  reset();
-  state = seed();
-  listeners.forEach((l) => l());
-}
-
-/* ── Estudantes e projetos ── */
-
-export function findStudent(id: string) {
-  return state.students.find((s) => s.id === id);
-}
-
-/** Projetos de todos os estudantes, achatados para o catálogo público. */
+export const findStudent = (id: string) => state.students.find(s => s.id === id);
 export function allProjects(students: Student[] = state.students) {
-  return students.flatMap((student) => student.projects.map((project) => ({ ...project, student })));
+  return students.flatMap(student => student.projects.map(project => ({ ...project, student })));
 }
-
 export type ProjectWithStudent = ReturnType<typeof allProjects>[number];
-
-export function findProject(id: string) {
-  return allProjects().find((p) => p.id === id);
+export const findProject = (id: string) => allProjects().find(p => p.id === id);
+export const studentEmail = (student: Student) => student.email;
+export const updateStudent = (id: string, patch: Partial<Student>) => mutate(`/students/${encodeURIComponent(id)}`, "PATCH", patch);
+export const findCompany = (name: string) => state.companies.find(c => c.name === name);
+export const companyEmail = (name: string) => findCompany(name)?.contactEmail ?? "";
+export const updateCompany = (_name: string, patch: Partial<Company>) => {
+  const { type: _type, ...data } = patch;
+  return mutate("/company", "PATCH", data);
+};
+export function addDemand(demand: Omit<Demand, "id" | "company" | "status" | "priority" | "submitted">) {
+  return runAction(async () => {
+    const result = await api<{ state: VitrineState; demand: Demand }>("/demands", { method: "POST", body: demand });
+    replaceState(result.state);
+    return result.demand;
+  });
 }
-
-/** E-mail institucional, liberado ao solicitante só depois do aceite dos dois lados. */
-export function studentEmail(student: Student) {
-  return student.email;
-}
-
-export function updateStudent(id: string, patch: Partial<Student>) {
-  update({ students: state.students.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
-}
-
-/* ── Solicitantes ── */
-
-export function findCompany(name: string) {
-  return state.companies.find((c) => c.name === name);
-}
-
-/** E-mail de contato, liberado ao estudante só depois do aceite dos dois lados. */
-export function companyEmail(name: string) {
-  return findCompany(name)?.contactEmail ?? "—";
-}
-
-export function updateCompany(name: string, patch: Partial<Company>) {
-  update({ companies: state.companies.map((c) => (c.name === name ? { ...c, ...patch } : c)) });
-}
-
-/* ── Demandas ── */
-
-export function addDemand(demand: Demand) {
-  update({ demands: [demand, ...state.demands] });
-}
-
-export function setDemandStatus(id: string, status: DemandStatus) {
-  update({ demands: state.demands.map((d) => (d.id === id ? { ...d, status } : d)) });
-}
-
-export function removeDemand(id: string) {
-  update({ demands: state.demands.filter((d) => d.id !== id) });
-}
-
-/* ── Interesses ── */
-
-/** Interesse ainda vivo (não recusado) entre o estudante e a demanda, se houver. */
+export const setDemandStatus = (id: string, status: DemandStatus) => mutate(`/demands/${encodeURIComponent(id)}/status`, "PATCH", { status });
+export const removeDemand = (id: string) => mutate(`/demands/${encodeURIComponent(id)}`, "DELETE");
 export function findActiveInterest(interests: Interest[], demandId: string, studentId: string) {
-  return interests.find(
-    (i) =>
-      i.demandId === demandId &&
-      i.studentId === studentId &&
-      i.status !== "recusado_estudante" &&
-      i.status !== "recusado_solicitante",
-  );
+  return interests.find(i => i.demandId === demandId && i.studentId === studentId && i.status !== "recusado_estudante" && i.status !== "recusado_solicitante");
 }
-
-/**
- * Abre um interesse por uma das três portas. Não duplica: se já houver um
- * interesse vivo entre o estudante e a demanda, devolve esse.
- */
-export function createInterest(
-  demandId: string,
-  studentId: string,
-  origin: InterestOrigin,
-  justification?: string,
-): Interest {
-  const existing = findActiveInterest(state.interests, demandId, studentId);
-  if (existing) return existing;
-
-  const interest: Interest = {
-    id: `INT-${String(Date.now()).slice(-4)}`,
-    demandId,
-    studentId,
-    origin,
-    justification: justification?.trim() || undefined,
-    status: initialStatus(origin),
-    createdAt: "agora",
-  };
-  update({ interests: [interest, ...state.interests] });
-  return interest;
+export function createInterest(demandId: string, studentId: string, origin: InterestOrigin, justification?: string) {
+  return runAction(async () => {
+    const result = await api<{ state: VitrineState; interest: Interest }>("/interests", { method: "POST", body: { demandId, studentId, origin, justification } });
+    replaceState(result.state);
+    return result.interest;
+  });
 }
-
-/**
- * Resposta de um dos lados. Quando o contato é liberado, a demanda passa a
- * "contato liberado"; a curadoria só observa.
- */
-export function respondInterest(id: string, side: InterestSide, accept: boolean, refusalReason?: string) {
-  const current = state.interests.find((i) => i.id === id);
-  if (!current) return;
-
-  const status = nextStatus(current.status, current.origin, side, accept);
-  const interests = state.interests.map((i) =>
-    i.id === id ? { ...i, status, refusalReason: accept ? i.refusalReason : refusalReason?.trim() || undefined } : i,
-  );
-  const demands =
-    status === "contato_liberado"
-      ? state.demands.map((d) => (d.id === current.demandId ? { ...d, status: "contato_liberado" as const } : d))
-      : state.demands;
-  update({ interests, demands });
+export const respondInterest = (id: string, _side: InterestSide, accept: boolean, refusalReason?: string) => mutate(`/interests/${encodeURIComponent(id)}/respond`, "POST", { accept, refusalReason });
+export const setInProject = (id: string, value: boolean) => updateStudent(id, { inProject: value });
+export function addProject(project: Omit<StudentProject, "id">) {
+  return runAction(async () => {
+    const result = await api<{ state: VitrineState; project: StudentProject }>("/projects", { method: "POST", body: project });
+    replaceState(result.state);
+    return result.project;
+  });
 }
-
-/* ── Selo "em projeto" ── */
-
-export function setInProject(studentId: string, value: boolean) {
-  update({ inProject: { ...state.inProject, [studentId]: value } });
+export const markRead = (id: string) => mutate(`/notifications/${encodeURIComponent(id)}/read`, "POST");
+export const markAllRead = () => mutate("/notifications/read-all", "POST");
+export const replyNotification = (id: string, content: string) => mutate(`/notifications/${encodeURIComponent(id)}/reply`, "POST", { content });
+export const deleteAttachment = (id: string) => mutate(`/attachments/${encodeURIComponent(id)}`, "DELETE");
+export function uploadAttachment(category: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return mutate(`/attachments/${category}`, "POST", form);
 }

@@ -1,7 +1,6 @@
 import { courseShort } from "@/data/institution";
 import { IMPACT_PERIOD, TESTIMONIALS } from "@/data/impact";
-import { allProjects, useVitrine } from "@/lib/store";
-import { isProfileVisible } from "@/lib/profile";
+import { useVitrine } from "@/lib/store";
 import { Eyebrow } from "./Eyebrow";
 import { PageHead } from "./PageHead";
 import { PAGE } from "./layout";
@@ -18,15 +17,6 @@ function QuoteMark() {
   );
 }
 
-/** Conta itens por chave e ordena do maior para o menor. */
-function countBy<T>(items: T[], key: (item: T) => string) {
-  const counts = items.reduce<Record<string, number>>((acc, item) => {
-    acc[key(item)] = (acc[key(item)] || 0) + 1;
-    return acc;
-  }, {});
-  return Object.entries(counts).sort((a, b) => b[1] - a[1]);
-}
-
 /**
  * Painel de indicadores da atividade de extensão (ACE1).
  *
@@ -35,27 +25,16 @@ function countBy<T>(items: T[], key: (item: T) => string) {
  * nas outras telas.
  */
 export function Impact() {
-  const { demands, interests, students: all } = useVitrine();
-  const students = all.filter(isProfileVisible);
-  const projects = allProjects(students);
-  const released = interests.filter((i) => i.status === "contato_liberado").length;
-
+  const { impact } = useVitrine();
   const headline = [
-    { value: released, label: "contatos liberados" },
-    { value: projects.length, label: "projetos na vitrine" },
-    { value: demands.length, label: "demandas recebidas" },
-    { value: students.length, label: "estudantes com perfil público" },
+    { value: impact.released, label: "contatos liberados" },
+    { value: impact.projects, label: "projetos na vitrine" },
+    { value: impact.demands, label: "demandas recebidas" },
+    { value: impact.students, label: "estudantes com perfil público" },
   ];
-
-  const byArea = countBy(demands, (d) => d.area);
+  const byArea = impact.byArea;
   const maxArea = Math.max(...byArea.map(([, n]) => n), 1);
-
-  // Só os cursos que têm estudante visível: com a UFAL inteira, listar todos
-  // os cursos encheria o painel de barras zeradas.
-  const byCourse = countBy(students, (s) => s.course).map(([course, n]) => ({
-    course,
-    pct: Math.round((n / students.length) * 100),
-  }));
+  const byCourse = impact.byCourse.map(([course, n]) => ({ course, pct: impact.students ? Math.round(n / impact.students * 100) : 0 }));
 
   return (
     <main className={`${PAGE} pb-20 md:pb-28`}>

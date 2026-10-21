@@ -1,5 +1,4 @@
 import { INSTITUTION } from "@/data/institution";
-import { resetDemo } from "@/lib/store";
 import { Logo } from "./Logo";
 import { PAGE } from "./layout";
 import type { PublicView } from "./routes";
@@ -79,19 +78,7 @@ export function PublicFooter({
           <span>Curadoria humana · contato só com aceite dos dois lados</span>
         </div>
 
-        <div className="mt-4 flex flex-col gap-2 font-sans text-xs text-offwhite/55 sm:flex-row sm:items-center sm:justify-between">
-          <span>Simulação: contas, perfis e demandas ficam salvos só neste navegador.</span>
-          <button
-            onClick={() => {
-              if (window.confirm("Apagar contas criadas, sessão e mudanças feitas neste navegador e voltar aos dados de exemplo?")) {
-                resetDemo();
-              }
-            }}
-            className="self-start text-offwhite/75 underline underline-offset-4 transition-colors hover:text-offwhite sm:self-auto"
-          >
-            Restaurar dados de exemplo
-          </button>
-        </div>
+
       </div>
     </footer>
   );

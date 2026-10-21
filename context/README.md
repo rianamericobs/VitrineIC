@@ -1,5 +1,9 @@
 # Contexto do VitrineIC
 
+> Atualização de 21/10/2026: o backend foi implementado e integrado. A referência
+> atual de execução, persistência, segurança e endpoints é [docs/backend.md](../docs/backend.md).
+> As menções abaixo a ausência de backend ou simulação descrevem o protótipo anterior.
+
 Contexto curado para agentes de IA e para quem entra no projeto. Cada arquivo
 cobre um assunto e é curto de propósito: **leia só o que a tarefa exige**.
 

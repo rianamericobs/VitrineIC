@@ -13,7 +13,6 @@ export function Step4({
   setData: (d: Partial<ProfileDraft>) => void;
   onGoToSkills: () => void;
 }) {
-  const docs = data.docs;
   const count = data.skills.length;
 
   return (
@@ -41,9 +40,7 @@ export function Step4({
           title="Anexar currículo e trabalhos"
           hint="PDF, DOCX, ZIP · máx. 20 MB"
           accept=".pdf,.docx,.zip"
-          files={docs}
-          onAdd={(names) => setData({ docs: [...docs, ...names] })}
-          onRemove={(idx) => setData({ docs: docs.filter((_, i) => i !== idx) })}
+          category="portfolio"
         />
       </div>
 

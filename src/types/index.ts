@@ -19,6 +19,11 @@ export interface Demand {
   submitted: string;
   status: DemandStatus;
   priority: "alta" | "normal" | "baixa";
+  audience?: string;
+  academicLevel?: string;
+  notes?: string;
+  teamSize?: string;
+  budget?: string;
 }
 
 /** Curso de qualquer unidade da UFAL. A lista vive em `UNITS`, de `@/data/institution`. */
@@ -49,6 +54,7 @@ export interface StudentProject {
   description: string;
   year: string;
   area: string;
+  link?: string;
 }
 
 export interface Student {
@@ -88,17 +94,17 @@ export interface Student {
   onboardingSkipped?: boolean;
 }
 
-/* ── Contas (simulação: tudo fica no navegador) ── */
+/* Contas públicas da API: nunca incluem credenciais. */
 
 export type Role = "student" | "requester" | "curator";
 
 export interface Account {
+  /** Preenchido somente após confirmação de posse do endereço. */
+  emailVerifiedAt?: string;
   id: string;
   role: Role;
   /** Sempre em minúsculas. */
   email: string;
-  /** SIMULAÇÃO: texto puro no localStorage. Não use senha real. */
-  password: string;
   /** Pessoa: estudante, responsável pela organização ou curador. */
   name: string;
   /** Estudante: id em `students`. Solicitante: nome da organização. Curador: vazio. */

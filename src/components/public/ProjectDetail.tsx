@@ -68,6 +68,11 @@ export function ProjectDetail({
           <p className="mt-4 max-w-[740px] font-sans text-[17px] leading-[1.6] text-navy/65">
             {project.description}
           </p>
+          {project.link && (
+            <a href={project.link} target="_blank" rel="noreferrer" className="vt-btn vt-btn-secondary mt-5">
+              Abrir projeto <Arrow />
+            </a>
+          )}
 
           <div className="mt-10">
             <Eyebrow>Stack</Eyebrow>

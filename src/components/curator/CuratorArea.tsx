@@ -33,9 +33,11 @@ export default function CuratorArea({ onBack }: { onBack: () => void }) {
   };
 
   /** A curadoria não fecha match: cria uma sugestão, que o estudante responde primeiro. */
-  const doSuggest = (justification: string) => {
+  const doSuggest = async (justification: string) => {
     if (selectedDemand && selectedStudent) {
-      setSuggestion(createInterest(selectedDemand.id, selectedStudent.id, "sugestao", justification));
+      const interest = await createInterest(selectedDemand.id, selectedStudent.id, "sugestao", justification);
+      if (!interest) return;
+      setSuggestion(interest);
     }
     go("confirmed");
   };

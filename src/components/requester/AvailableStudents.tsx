@@ -197,9 +197,9 @@ export function AvailableStudents() {
                 ) : (
                   <button
                     disabled={!demand}
-                    onClick={() => {
+                    onClick={async () => {
                       if (!demand) return;
-                      createInterest(demand.id, selectedStudent.id, "convite", message);
+                      if (!await createInterest(demand.id, selectedStudent.id, "convite", message)) return;
                       setSent(true);
                     }}
                     className="vt-btn vt-btn-primary mt-6 w-full"

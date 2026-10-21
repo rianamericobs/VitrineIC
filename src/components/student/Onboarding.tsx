@@ -8,7 +8,6 @@ import { ArrowIcon } from "@/components/app/Icons";
 import { Eyebrow } from "@/components/public/Eyebrow";
 import { Logo } from "@/components/public/Logo";
 import { PAGE } from "@/components/public/layout";
-import { renameAccount } from "@/lib/auth";
 import { BIO_MAX, fromDraft, toDraft, type ProfileDraft } from "@/lib/profile";
 import { updateStudent } from "@/lib/store";
 import { digits, maxLength, required, useValidation } from "@/lib/validate";
@@ -47,8 +46,7 @@ export function Onboarding({
   );
 
   const persist = (extra: Partial<Student> = {}) => {
-    updateStudent(student.id, { ...fromDraft(formData), ...extra });
-    if (formData.name.trim() !== student.name) renameAccount(formData.name);
+    return updateStudent(student.id, { ...fromDraft(formData), ...extra });
   };
 
   const goTo = (target: number) => {
@@ -56,19 +54,19 @@ export function Onboarding({
     window.scrollTo(0, 0);
   };
 
-  const next = () => {
+  const next = async () => {
     if (!validate()) return;
     if (step < 3) {
-      persist();
+      if (!await persist()) return;
       goTo(step + 1);
     } else {
-      persist({ onboardedAt: new Date().toISOString().slice(0, 10), onboardingSkipped: false });
+      if (!await persist({ onboardedAt: new Date().toISOString().slice(0, 10), onboardingSkipped: false })) return;
       onDone();
     }
   };
 
-  const skip = () => {
-    persist({ onboardingSkipped: true });
+  const skip = async () => {
+    if (!await persist({ onboardingSkipped: true })) return;
     onDone();
   };
 

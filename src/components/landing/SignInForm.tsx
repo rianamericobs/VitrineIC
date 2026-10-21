@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { FormAlert, InputField } from "./ui";
 import { ArrowIcon } from "@/components/app/Icons";
-import { signIn } from "@/lib/auth";
+import { requestPasswordReset, signIn } from "@/lib/auth";
+import { useVitrine } from "@/lib/store";
 import { email as emailRule, first, required, useValidation } from "@/lib/validate";
 import type { Role } from "@/types";
 
@@ -28,10 +29,13 @@ export function SignInForm({
 }) {
   const [values, setValues] = useState({ email: "", password: "" });
   const [failure, setFailure] = useState<string | null>(null);
+  const [recovering, setRecovering] = useState(false);
+  const [message, setMessage] = useState("");
+  const { auth } = useVitrine();
 
   const { validate, field } = useValidation<"email" | "password">(() => ({
     email: first(required(values.email, "Digite seu e-mail."), checkEmail(values.email)),
-    password: required(values.password, "Digite sua senha."),
+    password: recovering ? null : required(values.password, "Digite sua senha."),
   }));
 
   const set = (patch: Partial<typeof values>) => {
@@ -39,10 +43,15 @@ export function SignInForm({
     setFailure(null);
   };
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    const result = signIn(values.email, values.password, role);
+    if (recovering) {
+      const result = await requestPasswordReset(values.email);
+      if (result) setMessage(result.message);
+      return;
+    }
+    const result = await signIn(values.email, values.password, role);
     if (result.ok) onSignedIn(result.account.role);
     else setFailure(`${result.error} Confira os dados${role === "curator" ? "." : " ou crie uma conta."}`);
   };
@@ -50,6 +59,7 @@ export function SignInForm({
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
       {failure && <FormAlert>{failure}</FormAlert>}
+      {message && <p role="status" className={`text-sm ${dark ? "text-offwhite" : "text-moss"}`}>{message}</p>}
       <InputField
         label={emailLabel}
         type="email"
@@ -60,7 +70,7 @@ export function SignInForm({
         dark={dark}
         {...field("email")}
       />
-      <InputField
+      {!recovering && <InputField
         label="Senha"
         type="password"
         autoComplete="current-password"
@@ -69,13 +79,16 @@ export function SignInForm({
         onChange={(v) => set({ password: v })}
         dark={dark}
         {...field("password")}
-      />
+      />}
       <button
         type="submit"
         className={`vt-btn ${dark ? "vt-btn-cream" : "vt-btn-primary"} mt-2 h-11 w-full justify-center`}
       >
-        {submitLabel} <ArrowIcon />
+        {recovering ? "Enviar instruções" : submitLabel} <ArrowIcon />
       </button>
+      {auth.emailEnabled && <button type="button" onClick={() => { setRecovering(!recovering); setFailure(null); setMessage(""); setValues({ ...values, password: "" }); }} className={`text-center text-sm underline underline-offset-4 ${dark ? "text-offwhite/75" : "text-navy/65"}`}>
+        {recovering ? "Voltar para entrar" : "Esqueci minha senha"}
+      </button>}
     </form>
   );
 }

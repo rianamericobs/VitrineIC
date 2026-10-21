@@ -8,12 +8,13 @@ import { CuratorSignIn } from "@/components/curator/CuratorSignIn";
 import RequesterArea from "@/components/requester/RequesterArea";
 import StudentArea from "@/components/student/StudentArea";
 import { signOut, useSession } from "@/lib/auth";
+import { AccountLinkPage, readAccountLink } from "@/components/landing/AccountLinkPage";
 
 /**
  * Raiz da aplicação: landing, páginas públicas e as três áreas logadas.
  *
  * Não há roteador — o destino é estado local e não existe URL por tela. A
- * área logada vem da sessão (salva no navegador): recarregar a página com
+ * área logada vem da sessão do servidor (cookie HttpOnly): recarregar com
  * sessão aberta volta direto para ela. Ver docs/analise-frontend.md, seção 2.
  */
 type Route =
@@ -25,6 +26,7 @@ export default function App() {
   const session = useSession();
   const [route, setRoute] = useState<Route>({ area: "landing" });
   const [modalOpen, setModalOpen] = useState(false);
+  const [accountLink, setAccountLink] = useState(readAccountLink);
   const role = session?.account.role;
 
   // Sem roteador, a troca de tela não volta ao topo sozinha.
@@ -41,11 +43,11 @@ export default function App() {
     setRoute({ area: "landing" });
   };
 
-  const exit = () => {
-    signOut();
-    toLanding();
+  const exit = async () => {
+    if (await signOut()) toLanding();
   };
 
+  if (accountLink) return <AccountLinkPage link={accountLink} onDone={() => { setAccountLink(null); toLanding(); }} />;
   if (role === "student") return <StudentArea onBack={exit} />;
   if (role === "requester") return <RequesterArea onBack={exit} />;
   if (role === "curator") return <CuratorArea onBack={exit} />;

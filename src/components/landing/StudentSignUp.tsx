@@ -28,10 +28,10 @@ export function StudentSignUp({ onSignedUp }: { onSignedUp: () => void }) {
     setFailure(null);
   };
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    const result = signUpStudent(v);
+    const result = await signUpStudent(v);
     if (result.ok) onSignedUp();
     else setFailure(result.error);
   };

@@ -38,10 +38,10 @@ export function RequesterSignUp({ onSignedUp }: { onSignedUp: () => void }) {
     setFailure(null);
   };
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    const result = signUpRequester(v);
+    const result = await signUpRequester(v);
     if (result.ok) onSignedUp();
     else setFailure(result.error);
   };

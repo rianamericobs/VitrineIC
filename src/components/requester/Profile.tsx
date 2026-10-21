@@ -4,7 +4,7 @@ import { ArrowIcon, CheckIcon } from "@/components/app/Icons";
 import { PageHead } from "@/components/public/PageHead";
 import { PAGE } from "@/components/public/layout";
 import { REQUESTER_KIND_LABEL } from "@/data/companies";
-import { renameAccount, useSession } from "@/lib/auth";
+import { useSession } from "@/lib/auth";
 import { updateCompany } from "@/lib/store";
 import { email, first, required, useValidation } from "@/lib/validate";
 import type { RequesterKind } from "@/types";
@@ -41,10 +41,10 @@ export function Profile() {
     setSaved(false);
   };
 
-  const save = (e: FormEvent) => {
+  const save = async (e: FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    updateCompany(company.name, {
+    const saved = await updateCompany(company.name, {
       contactName: data.contactName.trim(),
       contactEmail: data.contactEmail.trim().toLowerCase(),
       kind: data.kind,
@@ -53,7 +53,7 @@ export function Profile() {
       site: data.site.trim().replace(/^https?:\/\//, ""),
       description: data.description.trim(),
     });
-    renameAccount(data.contactName);
+    if (!saved) return;
     setSaved(true);
   };
 

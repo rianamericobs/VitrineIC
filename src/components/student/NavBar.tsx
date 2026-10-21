@@ -1,6 +1,5 @@
 import { AreaNav } from "@/components/app/AreaNav";
 import { UpdatesMenu } from "@/components/app/UpdatesMenu";
-import { STUDENT_UPDATES } from "@/data/updates";
 
 /**
  * Barra da área do estudante, no modelo do Figma. A caixa de entrada sai das
@@ -36,7 +35,7 @@ export function NavBar({
       onInbox={() => setView("inbox")}
       inboxDot={unreadCount > 0}
       inboxActive={view === "inbox"}
-      bell={<UpdatesMenu initial={STUDENT_UPDATES} onOpen={setView} />}
+      bell={<UpdatesMenu onOpen={setView} />}
       onExit={onBack}
     />
   );

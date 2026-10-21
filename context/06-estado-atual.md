@@ -1,5 +1,9 @@
 # Estado atual
 
+> Atualização de 21/10/2026: o backend foi implementado e integrado. A referência
+> atual de execução, persistência, segurança e endpoints é [docs/backend.md](../docs/backend.md).
+> As menções abaixo a ausência de backend ou simulação descrevem o protótipo anterior.
+
 Referência: commit `feat: Todas as telas` mais a remoção do Figma Make e a
 reorganização de `src/`. Análise completa em `docs/analise-frontend.md`.
 

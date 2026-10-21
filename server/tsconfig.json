@@ -1,0 +1,5 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": { "target": "ES2022", "lib": ["ES2022", "DOM"] },
+  "include": ["./**/*.ts", "../src/types", "../src/data", "../src/lib/interest.ts", "../src/lib/profile.ts", "../src/lib/match.ts"]
+}

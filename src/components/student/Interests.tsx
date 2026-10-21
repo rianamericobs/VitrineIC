@@ -163,8 +163,8 @@ function InterestCard({ interest, demand, demands }: { interest: Interest; deman
         <RefuseModal
           title={`Recusar ${interest.origin === "convite" ? "o convite" : "a sugestão"}?`}
           onClose={() => setRefusing(false)}
-          onConfirm={(reason) => {
-            respondInterest(interest.id, "estudante", false, reason);
+          onConfirm={async (reason) => {
+            if (!await respondInterest(interest.id, "estudante", false, reason)) return;
             setRefusing(false);
           }}
         />

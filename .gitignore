@@ -3,6 +3,9 @@ dist/
 build/
 .cache/
 .env*
+!.env.example
+var/
+*.sqlite*
 .vite/
 vite.config.*.timestamp-*
 *.tsbuildinfo

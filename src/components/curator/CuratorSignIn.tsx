@@ -2,14 +2,20 @@ import { SignInForm } from "@/components/landing/SignInForm";
 import { Logo } from "@/components/public/Logo";
 import { INSTITUTION } from "@/data/institution";
 import { signInDemo } from "@/lib/auth";
+import { useVitrine } from "@/lib/store";
+import { useState } from "react";
 
 /**
  * Login da curadoria, em página própria. Não há cadastro aberto: só entram
  * contas de curador criadas pela coordenação (no protótipo, a de exemplo).
  */
 export function CuratorSignIn({ onSignedIn, onBack }: { onSignedIn: () => void; onBack: () => void }) {
-  const demo = () => {
-    if (signInDemo("curator").ok) onSignedIn();
+  const { demo: demoEnabled } = useVitrine();
+  const [error, setError] = useState("");
+  const demo = async () => {
+    const result = await signInDemo("curator");
+    if (result.ok) onSignedIn();
+    else setError(result.error);
   };
 
   return (
@@ -52,9 +58,10 @@ export function CuratorSignIn({ onSignedIn, onBack }: { onSignedIn: () => void; 
             Não há cadastro aberto. Para receber acesso, fale com a coordenação.
           </p>
           <div className="my-6 h-px bg-offwhite/12" />
-          <button onClick={demo} className="vt-btn vt-btn-outline-light h-11 w-full justify-center">
+          {demoEnabled && <button onClick={demo} className="vt-btn vt-btn-outline-light h-11 w-full justify-center">
             Entrar como curador de exemplo
-          </button>
+          </button>}
+          {error && <p role="alert" className="mt-3 text-sm text-offwhite">{error}</p>}
         </section>
       </div>
     </div>

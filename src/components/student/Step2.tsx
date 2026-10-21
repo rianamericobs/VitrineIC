@@ -11,7 +11,6 @@ export function Step2({
   setData: (d: Partial<ProfileDraft>) => void;
 }) {
   const skills = data.skills;
-  const certsTech = data.certificadosTech;
 
   return (
     <div className="flex flex-col gap-10">
@@ -31,9 +30,7 @@ export function Step2({
           title="Anexar certificado técnico"
           hint="PDF"
           accept=".pdf"
-          files={certsTech}
-          onAdd={(names) => setData({ certificadosTech: [...certsTech, ...names] })}
-          onRemove={(idx) => setData({ certificadosTech: certsTech.filter((_, i) => i !== idx) })}
+          category="tech"
         />
       </div>
     </div>

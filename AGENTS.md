@@ -94,9 +94,9 @@ Cada componente tem seu arquivo. **Abra só o que a tarefa pede** — não leia
 | Algoritmo de match | `src/lib/match.ts` |
 | Regras do fluxo de interesse | `src/lib/interest.ts` |
 | Estado compartilhado (estudantes, solicitantes, contas, sessão, demandas, interesses) | `src/lib/store.ts` |
-| Login, cadastro, sessão (simulados) | `src/lib/auth.ts` |
+| Cliente de login, cadastro, sessão e segurança da conta | `src/lib/auth.ts` |
 | Contas de demonstração | `src/data/accounts.ts` |
-| Leitura e escrita no `localStorage` | `src/lib/persist.ts` |
+| Cliente HTTP e inicialização da API | `src/lib/api.ts`, `src/components/app/ApiBoundary.tsx` |
 | Regra "perfil aparece na vitrine" e rascunho do perfil | `src/lib/profile.ts` |
 | Regras de validação de formulário | `src/lib/validate.ts`, `src/components/app/FieldError.tsx` |
 | Base de demandas e de interesses | `src/data/demands.ts`, `src/data/interests.ts` |
@@ -106,6 +106,22 @@ Cada componente tem seu arquivo. **Abra só o que a tarefa pede** — não leia
 | Tipos do domínio | `src/types/index.ts` |
 | Cores | `src/styles/tokens.ts` e `src/index.css` |
 | Conteúdo exibido (fictício) | `src/data/` |
+
+### Backend
+
+| Tarefa | Arquivo |
+|---|---|
+| Inicialização da API e configuração | `server/app.ts`, `server/index.ts`, `server/config.ts` |
+| Banco e migrações | `server/database.ts`, `server/migrations.ts` |
+| Login, cadastro e sessões | `server/auth-routes.ts`, `server/security.ts` |
+| Recuperação, confirmação e troca de senha | `server/account-routes.ts`, `server/account-tokens.ts` |
+| E-mail SMTP e captura local | `server/mail.ts` |
+| Perfis, projetos, demandas e interesses | `server/domain-routes.ts`, `server/schemas.ts` |
+| Dados filtrados por conta e indicadores | `server/views.ts` |
+| Mensagens, notificações e anexos | `server/inbox-routes.ts`, `server/notifications.ts`, `server/file-routes.ts` |
+| Contas de demonstração e criação de curadores | `server/seed.ts`, `server/create-curator.ts` |
+| Testes de integração | `server/tests/` |
+| Configuração e contrato HTTP | `docs/backend.md` |
 
 ## Contexto
 
@@ -175,8 +191,13 @@ texturizadas com a classe `.vt-stone`. Detalhes em `context/04-design-system.md`
 - Os números do painel de impacto são **derivados** das bases em tempo de
   render. Não digite indicadores em `data/impact.ts` — só o que não dá para
   derivar (depoimentos, metas) mora lá.
-- **Simulação**: contas, sessão e mudanças ficam no `localStorage` deste
-  navegador (chave `vitrineic:v1`), com senha em texto puro. Contas de exemplo
+- **Persistência**: contas e mudanças ficam no SQLite do servidor. Senhas são
+  hashes scrypt; sessões usam cookie HttpOnly. A chave antiga `vitrineic:v1`
+  é removida na inicialização. Contas de exemplo, somente via seed em desenvolvimento
   (senha `demo1234`): `estudante@ic.ufal.br`, `contato@techbr.com.br`,
-  `curadoria@ic.ufal.br`. "Restaurar dados de exemplo", no rodapé, apaga tudo.
-- Não há roteamento por URL, backend nem testes.
+  `curadoria@ic.ufal.br`. Não há rota pública de restauração do banco.
+- O backend valida permissões e filtra contatos; não confie em filtros do frontend.
+- E-mail usa SMTP configurável ou arquivos locais de desenvolvimento. Em produção,
+  a confirmação de posse é exigida por padrão; veja `docs/backend.md`.
+- A navegação principal continua por estado; links de confirmação/recuperação
+  usam fragmentos. `pnpm test`, `pnpm typecheck` e `pnpm build` verificam o projeto.

@@ -7,7 +7,7 @@ import { SuccessScreen } from "./SuccessScreen";
 import { Profile } from "./Profile";
 import { AvailableStudents } from "./AvailableStudents";
 import { Team } from "./Team";
-import { Inbox, INBOX_MESSAGES } from "./Inbox";
+import { Inbox } from "./Inbox";
 import { useCurrentRequester } from "@/lib/auth";
 import { useVitrine } from "@/lib/store";
 
@@ -15,7 +15,7 @@ export default function RequesterArea({ onBack }: { onBack: () => void }) {
   const [view, setView] = useState<"dashboard" | "new" | "success" | "matches" | "profile" | "available_students" | "team" | "inbox">("available_students");
   const [protocol, setProtocol] = useState("");
   const [matchDemand, setMatchDemand] = useState<string | null>(null);
-  const { demands, interests } = useVitrine();
+  const { demands, interests, notifications } = useVitrine();
   const requester = useCurrentRequester();
 
   const myIds = new Set(demands.filter((d) => d.company === requester).map((d) => d.id));
@@ -33,7 +33,7 @@ export default function RequesterArea({ onBack }: { onBack: () => void }) {
         view={view}
         setView={handleSetView}
         onBack={onBack}
-        unreadCount={INBOX_MESSAGES.filter((m) => m.unread).length}
+        unreadCount={notifications.filter((m) => m.unread).length}
         awaitingMe={awaitingMe}
       />
 
@@ -77,7 +77,7 @@ export default function RequesterArea({ onBack }: { onBack: () => void }) {
         />
       )}
 
-      {view === "team" && <Team />}
+      {view === "team" && <Team onInvite={() => handleSetView("available_students")} />}
 
       {view === "inbox" && <Inbox />}
 

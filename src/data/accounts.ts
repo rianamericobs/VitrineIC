@@ -1,14 +1,14 @@
 /**
  * DADOS FICTÍCIOS — contas de demonstração.
  *
- * SIMULAÇÃO: as senhas ficam em texto puro e as contas criadas no cadastro vão
- * para o localStorage do navegador. Não use senha real.
+ * Exclusivas da carga explícita de desenvolvimento. O servidor armazena hashes;
+ * estas credenciais públicas nunca devem ser carregadas em produção.
  */
 import type { Account } from "@/types";
 
 export const DEMO_PASSWORD = "demo1234";
 
-export const DEMO_ACCOUNTS: Account[] = [
+export const DEMO_ACCOUNTS: (Account & { password: string })[] = [
   {
     id: "ACC-001",
     role: "student",

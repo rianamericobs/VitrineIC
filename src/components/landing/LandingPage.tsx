@@ -1,4 +1,3 @@
-import { stats } from "@/data/showcase";
 import { allProjects, useVitrine } from "@/lib/store";
 import { isProfileVisible } from "@/lib/profile";
 import { ProjectCard } from "@/components/public/ProjectCard";
@@ -29,7 +28,12 @@ export default function LandingPage({
   onAdmin: () => void;
   onNavigate: (route: PublicRoute) => void;
 }) {
-  const { students } = useVitrine();
+  const { students, companies, impact } = useVitrine();
+  const stats = [
+    { index: "01", value: impact.projects, label: "projetos publicados" },
+    { index: "02", value: impact.students, label: "estudantes na vitrine" },
+    { index: "03", value: companies.length, label: "organizações cadastradas" },
+  ];
   const featured = allProjects(students.filter(isProfileVisible)).slice(0, 6);
 
   return (

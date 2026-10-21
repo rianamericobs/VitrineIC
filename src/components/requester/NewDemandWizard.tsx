@@ -5,7 +5,6 @@ import { StepIndicator } from "@/components/app/StepIndicator";
 import { BackButton } from "@/components/public/BackButton";
 import { Eyebrow } from "@/components/public/Eyebrow";
 import { PAGE } from "@/components/public/layout";
-import { useCurrentRequester } from "@/lib/auth";
 import { addDemand } from "@/lib/store";
 import { required, useValidation } from "@/lib/validate";
 
@@ -34,12 +33,12 @@ export function NewDemandWizard({
   onSuccess: (protocol: string) => void;
   onCancel: () => void;
 }) {
-  const requester = useCurrentRequester();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
     title: "",
     problem: "",
     audience: "",
+    academicLevel: "",
     area: "",
     scope: "",
     deadline: "",
@@ -69,25 +68,24 @@ export function NewDemandWizard({
     setStep(target);
   };
 
-  const next = () => {
+  const next = async () => {
     if (!validate()) return;
     if (step < 3) goTo(step + 1);
     else {
-      const protocol = `VIC-2026-${String(Math.floor(Math.random() * 9000) + 1000)}`;
-      addDemand({
-        id: protocol,
+      const demand = await addDemand({
         title: form.title.trim(),
-        company: requester,
         area: form.area || "Outra área",
         scope: form.scope || "A definir",
         deadline: form.deadline,
         skills: skillList,
         description: form.problem.trim(),
-        submitted: "hoje",
-        status: "nova",
-        priority: "normal",
+        audience: form.audience,
+        academicLevel: form.academicLevel,
+        notes: form.notes,
+        teamSize: form.teamSize,
+        budget: form.budget,
       });
-      onSuccess(protocol);
+      if (demand) onSuccess(demand.id);
     }
   };
 
@@ -161,8 +159,8 @@ export function NewDemandWizard({
       <Input
         label="Nível acadêmico mínimo"
         placeholder="Ex: 3º semestre em diante, qualquer semestre..."
-        value={form.audience}
-        onChange={(v) => update("audience", v)}
+        value={form.academicLevel}
+        onChange={(v) => update("academicLevel", v)}
       />
     </div>,
 

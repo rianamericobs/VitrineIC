@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { markRead, markAllRead, replyNotification } from "@/lib/store";
+import type { Notification } from "@/types/api";
 import { FilterPill } from "./FilterPill";
 import { ArrowIcon } from "./Icons";
 import { NotificationRow } from "./NotificationRow";
@@ -8,14 +10,7 @@ import { PageHead } from "@/components/public/PageHead";
 import { PAGE } from "@/components/public/layout";
 import { SLATE } from "@/styles/tokens";
 
-export interface InboxMessage {
-  type: string;
-  from: string;
-  project: string;
-  time: string;
-  unread: boolean;
-  content: string;
-}
+export type InboxMessage = Notification;
 
 /**
  * Caixa de entrada das áreas logadas: mensagens no card do Figma, filtro
@@ -30,17 +25,18 @@ export function Inbox({
   initial: InboxMessage[];
   typeColors: Record<string, string>;
 }) {
-  const [notifs, setNotifs] = useState(initial);
+  const notifs = initial;
+  const [sent, setSent] = useState(false);
   const [filter, setFilter] = useState<"todas" | "nao-lidas">("todas");
   const [selected, setSelected] = useState<InboxMessage | null>(null);
   const [reply, setReply] = useState("");
 
   const unreadCount = notifs.filter((n) => n.unread).length;
-  const markAllRead = () => setNotifs(notifs.map((n) => ({ ...n, unread: false })));
 
-  const openNotif = (index: number) => {
+  const openNotif = async (index: number) => {
     const original = notifs[index];
-    setNotifs(notifs.map((n, i) => (i === index ? { ...n, unread: false } : n)));
+    if (!await markRead(original.id)) return;
+    setSent(false);
     setSelected(original);
   };
 
@@ -70,7 +66,7 @@ export function Inbox({
 
           <p className="py-8 font-sans text-[15px] leading-[1.65] whitespace-pre-wrap text-navy/85">{selected.content}</p>
 
-          <div className="border-t border-navy/8 pt-6">
+          {selected.canReply && <div className="border-t border-navy/8 pt-6">
             <label className="mb-2 block font-mono text-[10px] uppercase tracking-[0.08em] text-navy/65">
               Responder mensagem
             </label>
@@ -82,11 +78,12 @@ export function Inbox({
               onChange={(e) => setReply(e.target.value)}
             />
             <div className="mt-4 flex justify-end">
-              <button className="vt-btn vt-btn-primary">
+              {sent && <p role="status" className="mr-4 text-sm text-moss">Resposta enviada.</p>}
+              <button disabled={!reply.trim()} onClick={async () => { if (await replyNotification(selected.id, reply)) { setReply(""); setSent(true); } }} className="vt-btn vt-btn-primary">
                 Enviar resposta <ArrowIcon />
               </button>
             </div>
-          </div>
+          </div>}
         </article>
       </main>
     );

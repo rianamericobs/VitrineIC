@@ -6,7 +6,7 @@ import { Modal } from "@/components/app/Modal";
 import { StatusPill } from "@/components/app/StatusPill";
 import { PageHead } from "@/components/public/PageHead";
 import { PAGE } from "@/components/public/layout";
-import { setInProject, useVitrine } from "@/lib/store";
+import { addProject, setInProject, useVitrine } from "@/lib/store";
 import { required, useValidation } from "@/lib/validate";
 import { MOSS, OCHRE, SLATE } from "@/styles/tokens";
 
@@ -28,16 +28,13 @@ const PHASE_COLOR: Record<string, string> = {
   Publicado: MOSS,
 };
 
-export const INITIAL_PROJECTS: MyProject[] = [
-  {
-    id: "p1",
-    title: "Classificador de Imagens Médicas",
-    description: "Modelo de redes neurais convolucionais para detecção precoce de anomalias em raios-x do tórax.",
-    phase: "Publicado",
-    link: "https://github.com/exemplo/med-ai",
-    tools: "Python, PyTorch",
-  },
-];
+const PHASE_STATUS: Record<string, import("@/types").ProjectStatus> = { Idealização: "ideation", Codificação: "coding", Revisão: "review", Publicado: "done" };
+
+export function toMyProject(project: import("@/types").StudentProject): MyProject {
+  return { id: project.id, title: project.title, description: project.description,
+    phase: Object.keys(PHASE_STATUS).find(k => PHASE_STATUS[k] === project.status) ?? "Idealização",
+    tools: project.stack.join(", "), link: project.link };
+}
 
 /**
  * Selo "em projeto": o estudante avisa que já está alocado. É o único dado
@@ -72,11 +69,9 @@ function InProjectToggle({ studentId }: { studentId: string }) {
 
 export function Projects({
   projects,
-  setProjects,
   studentId,
 }: {
   projects: MyProject[];
-  setProjects: (p: MyProject[]) => void;
   studentId: string;
 }) {
   const [isAdding, setIsAdding] = useState(false);
@@ -95,10 +90,15 @@ export function Projects({
     reset();
   };
 
-  const saveProject = () => {
+  const saveProject = async () => {
     if (!validate()) return;
-    setProjects([{ ...form, id: `p-${Date.now()}` } as MyProject, ...projects]);
-    close();
+    const project = await addProject({
+      title: form.title!, description: form.description!,
+      status: PHASE_STATUS[form.phase!],
+      stack: (form.tools ?? "").split(",").map(s => s.trim()).filter(Boolean),
+      year: String(new Date().getFullYear()), area: "", link: form.link ?? "",
+    });
+    if (project) close();
   };
 
   return (
@@ -228,7 +228,7 @@ export function Projects({
               onClick={saveProject}
               className="vt-btn vt-btn-primary"
             >
-              Enviar para curadoria <ArrowIcon />
+              Publicar projeto <ArrowIcon />
             </button>
           </div>
         </Modal>

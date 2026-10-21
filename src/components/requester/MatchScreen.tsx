@@ -192,8 +192,8 @@ export function MatchScreen({ demandId, onBack }: { demandId?: string | null; on
         <RefuseModal
           title={`Recusar ${findStudent(refusing.studentId)?.name ?? "estudante"}?`}
           onClose={() => setRefusing(null)}
-          onConfirm={(reason) => {
-            respondInterest(refusing.id, "solicitante", false, reason);
+          onConfirm={async (reason) => {
+            if (!await respondInterest(refusing.id, "solicitante", false, reason)) return;
             setRefusing(null);
           }}
         />

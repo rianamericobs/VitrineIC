@@ -6,6 +6,7 @@ import { StudentSignUp } from "./StudentSignUp";
 import { Divider } from "./ui";
 import { Eyebrow } from "@/components/public/Eyebrow";
 import { signInDemo } from "@/lib/auth";
+import { useVitrine } from "@/lib/store";
 import type { Role } from "@/types";
 
 type Tab = "student" | "requester";
@@ -33,6 +34,8 @@ const SIGN_UP_COPY: Record<Tab, { eyebrow: string; title: string; lead: string }
  * cada papel. A curadoria entra por página própria (`CuratorSignIn`).
  */
 export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSignedIn: (role: Role) => void }) {
+  const { demo: demoEnabled } = useVitrine();
+  const [demoError, setDemoError] = useState("");
   const [tab, setTab] = useState<Tab>("student");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
 
@@ -48,8 +51,10 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
     };
   }, [onClose]);
 
-  const demo = (role: Role) => {
-    if (signInDemo(role).ok) onSignedIn(role);
+  const demo = async (role: Role) => {
+    const result = await signInDemo(role);
+    if (result.ok) onSignedIn(role);
+    else setDemoError(result.error);
   };
 
   const copy = SIGN_UP_COPY[tab];
@@ -134,7 +139,7 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
               </button>
             </p>
 
-            <Divider label="Contas de demonstração" />
+            {demoEnabled && <><Divider label="Contas de demonstração" />
             <div className="grid grid-cols-2 gap-2.5">
               <button onClick={() => demo("student")} className="vt-btn vt-btn-secondary justify-center">
                 Estudante de exemplo
@@ -144,8 +149,9 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
               </button>
             </div>
             <p className="mt-4 text-center font-sans text-xs text-navy/55">
-              Simulação: as contas ficam salvas só neste navegador.
+              Ambiente com dados fictícios para demonstração.
             </p>
+            {demoError && <p role="alert" className="text-sm text-red">{demoError}</p>}</>}
           </>
         )}
       </div>

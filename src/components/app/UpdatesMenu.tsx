@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BellIcon } from "./Icons";
 import type { Update, UpdateKind } from "@/data/updates";
+import { useVitrine, markRead, markAllRead } from "@/lib/store";
 
 const KIND_LABEL: Record<UpdateKind, string> = {
   processo: "Processo",
@@ -13,8 +14,9 @@ const KIND_LABEL: Record<UpdateKind, string> = {
  * Sino das áreas logadas: abre uma lista curta de avisos (andamento, vagas
  * novas, interessados). Cada aviso marca-se como lido e leva à tela dele.
  */
-export function UpdatesMenu({ initial, onOpen }: { initial: Update[]; onOpen: (target: string) => void }) {
-  const [updates, setUpdates] = useState(initial);
+export function UpdatesMenu({ onOpen }: { onOpen: (target: string) => void }) {
+  const { notifications } = useVitrine();
+  const updates: Update[] = notifications.map(n => ({ id: n.id, kind: "processo", text: n.project, time: n.time, unread: n.unread, target: "inbox" }));
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -36,8 +38,8 @@ export function UpdatesMenu({ initial, onOpen }: { initial: Update[]; onOpen: (t
     };
   }, [open]);
 
-  const select = (update: Update) => {
-    setUpdates(updates.map((u) => (u.id === update.id ? { ...u, unread: false } : u)));
+  const select = async (update: Update) => {
+    if (!await markRead(update.id)) return;
     setOpen(false);
     onOpen(update.target);
   };
@@ -61,7 +63,7 @@ export function UpdatesMenu({ initial, onOpen }: { initial: Update[]; onOpen: (t
               Notificações{unread > 0 && ` · ${unread} novas`}
             </span>
             <button
-              onClick={() => setUpdates(updates.map((u) => ({ ...u, unread: false })))}
+              onClick={() => void markAllRead()}
               disabled={unread === 0}
               className="font-sans text-xs text-navy/55 underline underline-offset-4 transition-colors hover:text-navy disabled:no-underline disabled:opacity-40"
             >

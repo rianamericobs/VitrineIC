@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { Opportunities } from "./Opportunities";
 import { Interests } from "./Interests";
-import { Projects, INITIAL_PROJECTS, type MyProject } from "./Projects";
+import { Projects, toMyProject } from "./Projects";
 import { Profile } from "./Profile";
 import { NavBar } from "./NavBar";
 import { Inbox } from "./Inbox";
 import { Onboarding } from "./Onboarding";
 import { ArrowIcon } from "@/components/app/Icons";
 import { PAGE } from "@/components/public/layout";
-import { notifications as initialNotifications } from "@/data/notifications";
 import { useSession } from "@/lib/auth";
 import { isProfileVisible } from "@/lib/profile";
 import { useVitrine } from "@/lib/store";
@@ -18,8 +17,8 @@ export default function StudentArea({ onBack }: { onBack: () => void }) {
   const student = session?.student;
   const [resumeOnboarding, setResumeOnboarding] = useState(false);
   const [view, setView] = useState("opportunities");
-  const [projects, setProjects] = useState<MyProject[]>(INITIAL_PROJECTS);
-  const { interests } = useVitrine();
+  const projects = student?.projects.map(toMyProject) ?? [];
+  const { interests, notifications } = useVitrine();
 
   if (!student) return null;
 
@@ -38,7 +37,7 @@ export default function StudentArea({ onBack }: { onBack: () => void }) {
     );
   }
 
-  const unreadCount = initialNotifications.filter((n) => n.unread).length;
+  const unreadCount = notifications.filter((n) => n.unread).length;
   const awaitingMe = interests.filter(
     (i) => i.studentId === student.id && i.status === "aguardando_estudante",
   ).length;
@@ -79,7 +78,7 @@ export default function StudentArea({ onBack }: { onBack: () => void }) {
       {view === "interests" && <Interests studentId={student.id} />}
 
       {view === "projects" && (
-        <Projects projects={projects} setProjects={setProjects} studentId={student.id} />
+        <Projects projects={projects} studentId={student.id} />
       )}
 
       {view === "inbox" && <Inbox />}
