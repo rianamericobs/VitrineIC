@@ -1,0 +1,25 @@
+# Ambiente gratuito de TESTES: SQLite é descartável. Leia docs/render.md.
+# Não declara discos, bancos gerenciados ou outros recursos pagos.
+services:
+  - type: web
+    name: vitrineic
+    runtime: node
+    plan: free
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm build
+    startCommand: node build/server.mjs
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATABASE_PATH
+        value: /tmp/vitrineic/vitrineic.sqlite
+      - key: DEMO_MODE
+        value: "false"
+      # Sem provedor externo, confirmação e recuperação de e-mail ficam indisponíveis.
+      # Ao configurar Resend, atualize estes dois valores aqui também.
+      - key: MAIL_MODE
+        value: disabled
+      - key: REQUIRE_VERIFIED_EMAIL
+        value: "false"

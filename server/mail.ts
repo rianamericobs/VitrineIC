@@ -7,8 +7,25 @@ import type { MailConfig } from "./config";
 export interface MailMessage { to: string; subject: string; text: string }
 export interface Mailer { send(message: MailMessage): Promise<void> }
 
-export function createMailer(config: MailConfig): Mailer {
+export function createMailer(config: MailConfig, request: typeof fetch = fetch): Mailer {
   if (config.mode === "disabled") return { async send() { throw new Error("Envio de e-mail desabilitado."); } };
+  if (config.mode === "resend") {
+    return { async send(message) {
+      const response = await request("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ ...message, from: config.from, to: [message.to] }),
+        signal: AbortSignal.timeout(15_000),
+        redirect: "error",
+      });
+      // Não registre o corpo do provedor: pode conter destinatários e links de acesso.
+      if (!response.ok) {
+        await response.body?.cancel();
+        throw new Error(`Falha no envio de e-mail via HTTPS (${response.status}).`);
+      }
+      await response.body?.cancel();
+    } };
+  }
   if (config.mode === "file") {
     const transport = nodemailer.createTransport({ streamTransport: true, buffer: true });
     return { async send(message) {

@@ -24,3 +24,29 @@ test("transporte local grava mensagem sem rede e não usa o assunto como caminho
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("transporte HTTPS envia mensagem e trata rejeição sem expor conteúdo ou credenciais", async () => {
+  const config = { ...readConfig().mail, mode: "resend" as const, apiKey: "segredo-de-teste", from: "vitrine@example.com" };
+  const message = { to: "student@example.com", subject: "Confirmação", text: "link-privado" };
+  let calls = 0;
+  const request: typeof fetch = async (url, init) => {
+    calls++;
+    assert.equal(url, "https://api.resend.com/emails");
+    assert.equal(init?.method, "POST");
+    assert.equal(init?.redirect, "error");
+    assert.ok(init?.signal instanceof AbortSignal);
+    assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer segredo-de-teste");
+    assert.deepEqual(JSON.parse(String(init?.body)), { ...message, from: config.from, to: [message.to] });
+    return calls === 1 ? new Response('{"id":"email-teste"}') : new Response("link-privado segredo-de-teste", { status: 429 });
+  };
+  const mailer = createMailer(config, request);
+  await mailer.send(message);
+  await assert.rejects(() => mailer.send(message), error => {
+    assert.ok(error instanceof Error);
+    assert.match(error.message, /429/);
+    assert.ok(!error.message.includes("link-privado"));
+    assert.ok(!error.message.includes(config.apiKey));
+    return true;
+  });
+  await assert.rejects(() => createMailer(config, async () => { throw new Error("falha de rede"); }).send(message));
+});

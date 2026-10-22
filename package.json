@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit && tsc -p server/tsconfig.json --noEmit",
     "test": "tsx --test server/tests/*.test.ts",
     "db:seed": "tsx --env-file-if-exists=.env server/seed.ts",
+    "db:backup": "node --env-file-if-exists=.env scripts/backup-database.mjs",
     "curator:create": "tsx --env-file-if-exists=.env server/create-curator.ts"
   },
   "dependencies": {

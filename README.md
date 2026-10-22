@@ -68,6 +68,7 @@ confirmar o e-mail, trocar senha e sair de todas as sessões. Em desenvolvimento
 | `pnpm build` | Tipos e builds de produção |
 | `pnpm start` | API e frontend compilados na mesma porta |
 | `pnpm db:seed` | Carga explícita de exemplos em desenvolvimento |
+| `pnpm db:backup` | Snapshot consistente de SQLite; exige `BACKUP_PATH` |
 | `pnpm curator:create` | Criar curador usando variáveis de ambiente |
 
 ## Estrutura
@@ -85,14 +86,19 @@ confirmar o e-mail, trocar senha e sair de todas as sessões. Em desenvolvimento
 
 ## Publicação
 
-O serviço precisa de Node e de **volume persistente** para SQLite. Configure
-`NODE_ENV=production`, `HOST=0.0.0.0`, `APP_ORIGIN=https://seu-dominio`,
-`DATABASE_PATH=/data/vitrineic.sqlite` e `DEMO_MODE=false`.
-Configure também `MAIL_MODE=smtp`, `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`,
-`SMTP_USER` e `SMTP_PASSWORD`, mantendo `REQUIRE_VERIFIED_EMAIL=true`.
-Na Railway, monte o volume em `/data`; build e start estão em `railway.json`.
-Há também um Dockerfile. Veja [o guia de operação](docs/backend.md) para
-curadoria, backups e limites desta implantação.
+Frontend e backend são servidos juntos por um Web Service no Render.
+O [guia do Render](docs/render.md) explica a publicação com o `render.yaml`
+gratuito, criação da curadoria sem shell, e-mail via HTTPS e backups.
+
+**O plano gratuito usa SQLite descartável:** contas, projetos, demandas e anexos
+se perdem em deploys, reinícios e suspensão por inatividade. Essa configuração
+é para testes, com e-mail desativado e sem confirmação de posse do endereço.
+Para dados duráveis mantendo SQLite, será necessário serviço com disco
+persistente; nenhum recurso pago foi ativado. O guia também descreve essa
+configuração e as limitações de usar banco externo com a implementação atual.
+
+Há também um Dockerfile e configuração anterior da Railway. Veja
+[o guia de operação](docs/backend.md) para o contrato da API e segurança.
 
 A navegação continua por estado React; links de acesso por e-mail usam fragmentos.
 Identidade institucional externa e antivírus não fazem parte desta implementação.

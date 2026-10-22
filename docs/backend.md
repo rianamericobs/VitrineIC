@@ -1,5 +1,8 @@
 # Backend do VitrineIC
 
+Para publicar frontend e backend juntos, veja o [guia do Render](render.md).
+Ele distingue o ambiente gratuito descartável do uso com disco persistente.
+
 ## Executar
 
 Node **22.13+ ou 24 LTS** e pnpm **10.34.3**.
@@ -212,7 +215,10 @@ Na porta 587, o transporte exige STARTTLS. Não há opção de ignorar certifica
 inválidos. Os segredos SMTP ficam somente no servidor. A integração não exige
 acesso ao navegador, ao perfil do Chrome ou à caixa de e-mail pessoal.
 
-Em produção, a confirmação é obrigatória por padrão e exige SMTP configurado.
+Em produção, a confirmação é obrigatória por padrão e exige envio configurado.
+Além de SMTP, `MAIL_MODE=resend` usa HTTPS com `RESEND_API_KEY` e `MAIL_FROM`.
+É a alternativa preparada para o Render Free, que bloqueia as portas SMTP
+25, 465 e 587. Veja [configuração e limites no Render](render.md#e-mail-no-gratuito).
 O modo `file` é recusado em produção. Quando a exigência está ativa, estudantes
 sem confirmação ficam fora do diretório e do catálogo, mesmo com competências.
 Publicar projetos/demandas, enviar anexos, realizar a triagem e criar ou responder
@@ -243,7 +249,7 @@ confirmação. Reabrir o link original do e-mail permite tentar novamente caso
 ele ainda seja válido.
 
 A entrega usa uma fila em memória, limitada a 100 mensagens, fora do ciclo
-HTTP; o tempo de SMTP não diferencia a resposta para contas existentes. No
+HTTP; o tempo de envio não diferencia a resposta para contas existentes. No
 encerramento normal, o servidor aguarda as entregas pendentes. Falha de envio
 invalida o token correspondente e registra um aviso sem conteúdo ou credenciais.
 Não há retentativa automática nem fila persistente: após queda abrupta ou falha
@@ -268,6 +274,10 @@ senhas em texto puro. Dados do protótipo **não são importados automaticamente
 as contas devem ser cadastradas novamente ou criadas pelo seed explícito.
 
 ## Produção / Railway
+
+Para Render, siga [docs/render.md](render.md). A configuração abaixo é a
+alternativa anterior com volume persistente; não se aplica ao plano gratuito
+do Render. O `render.yaml` da raiz não cria discos nem bancos pagos.
 
 O serviço agora precisa de processo Node e **disco persistente**. Configure:
 
@@ -300,17 +310,21 @@ Atrás de proxy, configure também os limites de tráfego do provedor.
 
 Faça backup consistente com o servidor parado (ou use a API de backup do SQLite).
 Não copie apenas o arquivo principal enquanto houver escrita em modo WAL.
+O comando `pnpm db:backup`, com `DATABASE_PATH` e `BACKUP_PATH`, gera um snapshot
+consistente com `VACUUM INTO`, incluindo anexos, mesmo com WAL em uso.
 Guarde backups fora do volume de execução. HTTPS é necessário para o cookie
 Secure; nenhum segredo deve usar prefixo `VITE_`.
 
 ## Verificação e limites
 
-`pnpm test` executa quinze cenários de integração com múltiplas asserções: cadastros,
+`pnpm test` executa cenários de integração com múltiplas asserções: cadastros,
 login, domínio institucional, autorização, privacidade, três origens de interesse,
 aceite duplo, recusa, duplicação, mensagens, projetos, reinício do banco,
 anexos, CSRF, limites de login, rotação/expiração e cookies de produção; confirmação
 de endereço, recuperação, concorrência, revogação de sessões, uso único de tokens,
-reenvio, falha de entrega, transporte local e migração do banco existente.
+reenvio, falha de entrega, transportes local e HTTPS e migração do banco existente.
+Também verifica origem automática do Render, bootstrap idempotente da curadoria
+e backup consistente com WAL e anexos, preservando o banco de origem.
 
 Não estão implementados integração com identidade institucional ou antivírus.
 SMTP depende das credenciais e do remetente do provedor de hospedagem. O sistema segue

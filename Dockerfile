@@ -14,6 +14,7 @@ COPY --from=build --chown=node:node /app/package.json /app/pnpm-lock.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --from=build --chown=node:node /app/build ./build
+COPY --from=build --chown=node:node /app/scripts/backup-database.mjs ./scripts/backup-database.mjs
 USER node
 VOLUME ["/data"]
 EXPOSE 3001
