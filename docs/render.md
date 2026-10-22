@@ -45,7 +45,7 @@ Se preferir **New → Web Service**, use os mesmos valores:
 | Runtime | Node |
 | Root Directory | Raiz do repositório (deixe vazio) |
 | Instance Type | Free |
-| Build Command | `corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm build` |
+| Build Command | `pnpm install --frozen-lockfile --prod=false && pnpm build` |
 | Start Command | `node build/server.mjs` |
 | Health Check Path | `/api/health` |
 | Node | `24.22.1`, definido em `.node-version` |
@@ -53,6 +53,13 @@ Se preferir **New → Web Service**, use os mesmos valores:
 Copie também as variáveis de `render.yaml` para **Environment**. O build precisa
 das devDependencies (TypeScript, Vite, esbuild); por isso usa `--prod=false`.
 `PORT` é fornecida pelo Render e não deve ser fixada no painel.
+
+O runtime Node do Render já fornece `pnpm`. Não execute `corepack enable`
+no Build Command desse serviço: ele tenta modificar os executáveis globais e
+pode falhar com `EROFS: read-only file system, unlink '/usr/bin/pnpm'`.
+Esse erro ocorre antes da instalação e compilação. Se o serviço tiver o
+comando antigo, sincronize o Blueprint atualizado ou substitua o Build Command
+no painel pelo valor acima e execute um novo deploy.
 
 `APP_ORIGIN` é opcional nesse serviço: o backend usa `RENDER_EXTERNAL_URL`.
 Para domínio próprio, defina `APP_ORIGIN=https://seu-dominio` sem caminho,
