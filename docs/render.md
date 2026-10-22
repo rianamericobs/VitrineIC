@@ -1,6 +1,9 @@
 # Frontend e backend juntos no Render
 
-Preparação conferida em 22/10/2026. Nenhum serviço foi criado ou contratado.
+Preparação local conferida em 22/10/2026. O usuário já criou um serviço no
+Render; o primeiro log recebido mostrou falha em `corepack enable`, corrigida
+no comando abaixo. Ainda falta confirmar o deploy atualizado pela URL pública.
+Nenhum recurso pago foi contratado nesta preparação.
 
 O Fastify serve `dist/` e `/api` em um único Web Service. O frontend já usa URLs
 relativas `/api`; não precisa de GitHub Pages, CORS nem `VITE_API_URL`.
@@ -244,8 +247,32 @@ A sessão bloqueou conexão HTTP local; essa checagem usou a injeção de
 requisições do Fastify. O processo compilado também iniciou antes desse bloqueio.
 
 O teste local não valida a infraestrutura do Render ou entrega real de e-mail.
-A etapa externa pendente é enviar o código ao GitHub e criar o Web Service
-Free no painel, com os segredos próprios quando necessários.
+A validação local mais recente está em [verificacao-projeto.md](verificacao-projeto.md).
+O serviço já foi criado pelo usuário. A etapa externa pendente é publicar as
+correções atuais, confirmar o deploy atualizado e testar a URL pública, com os
+segredos próprios configurados quando necessários.
+
+## O que enviar para conferir o serviço publicado
+
+1. A URL pública HTTPS do site (`https://<servico>.onrender.com`), não apenas
+   o endereço do painel do Render.
+2. O status do último deploy, o commit publicado e os logs de build e de
+   inicialização. Pode enviar como texto ou capturas legíveis.
+3. Os comandos de Build e Start e o Health Check Path mostrados no painel.
+4. Os valores não secretos de `NODE_ENV`, `HOST`, `DATABASE_PATH`, `DEMO_MODE`,
+   `MAIL_MODE`, `REQUIRE_VERIFIED_EMAIL` e `APP_ORIGIN`, se definido.
+
+Não envie senhas, cookies, tokens de recuperação, arquivo `.env` completo ou
+chaves de API. Para credenciais de e-mail e bootstrap, basta informar quais
+nomes de variáveis estão configurados, ocultando seus valores.
+
+Se uma tela apresentar falha, acrescente a ação que a provocou e o erro do
+Console/Network do navegador, sem credenciais. Para percorrer áreas privadas,
+combine contas descartáveis de teste; não compartilhe sua senha pessoal.
+
+`/api/health` deve responder `{"status":"ok"}`, mas isso não comprova sozinho
+cadastros, sessões, permissões, fluxo de interesses e entrega de e-mail.
+E-mail real e durabilidade do banco precisam de verificações específicas.
 
 ## Referências oficiais
 

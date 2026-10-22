@@ -1,9 +1,13 @@
 node_modules
 dist
 build
+.cache
+.vite
 var
 .env
 .env.*
 !.env.example
 .git
 *.zip
+*.sqlite*
+*.log
