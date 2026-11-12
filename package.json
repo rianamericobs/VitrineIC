@@ -12,34 +12,40 @@
     "start": "node --env-file-if-exists=.env build/server.mjs",
     "typecheck": "tsc --noEmit && tsc -p server/tsconfig.json --noEmit",
     "test": "tsx --test server/tests/*.test.ts",
+    "db:init": "node scripts/pg-dev.mjs init",
+    "db:up": "node scripts/pg-dev.mjs start",
+    "db:down": "node scripts/pg-dev.mjs stop",
+    "db:migrate": "tsx --env-file-if-exists=.env server/db/setup.ts",
     "db:seed": "tsx --env-file-if-exists=.env server/seed.ts",
     "db:backup": "node --env-file-if-exists=.env scripts/backup-database.mjs",
     "curator:create": "tsx --env-file-if-exists=.env server/create-curator.ts"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/multipart": "^9.2.1",
+    "@fastify/rate-limit": "^10.3.0",
+    "@fastify/static": "^8.3.0",
+    "fastify": "^5.6.2",
+    "nodemailer": "^10.1.7",
+    "pg": "^8.23.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "fastify": "^5.6.2",
-    "@fastify/cookie": "^11.0.2",
-    "@fastify/static": "^8.3.0",
-    "@fastify/rate-limit": "^10.3.0",
-    "@fastify/multipart": "^9.2.1",
-    "zod": "^3.25.76",
-    "nodemailer": "^10.1.7"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
     "@types/node": "^22.0.0",
+    "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^6.0.0",
-    "tailwindcss": "^4.0.0",
-    "typescript": "^5.7.0",
-    "vite": "^8.0.5",
-    "tsx": "^4.20.6",
-    "esbuild": "^0.28.0",
     "concurrently": "^9.2.1",
-    "@types/nodemailer": "^8.0.2"
+    "esbuild": "^0.28.0",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.7.0",
+    "vite": "^8.0.5"
   },
   "engines": {
     "node": "^22.13.0 || ^24.0.0"

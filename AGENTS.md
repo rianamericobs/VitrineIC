@@ -112,7 +112,11 @@ Cada componente tem seu arquivo. **Abra só o que a tarefa pede** — não leia
 | Tarefa | Arquivo |
 |---|---|
 | Inicialização da API e configuração | `server/app.ts`, `server/index.ts`, `server/config.ts` |
-| Banco e migrações | `server/database.ts`, `server/migrations.ts` |
+| Banco e migrações (SQLite, em substituição) | `server/database.ts`, `server/migrations.ts` |
+| Conexão, migrações e catálogos (PostgreSQL) | `server/db/pool.ts`, `server/db/migrate.ts`, `server/db/sync-catalog.ts` |
+| Cluster local de desenvolvimento (porta 5433) | `scripts/pg-dev.mjs` — `pnpm db:init`, `db:up`, `db:down` |
+| Esquema 3FN | `server/db/migrations/001_schema.sql`, `docs/modelo-dados-3fn.md` |
+| Mapa das consultas e seus custos | `docs/mapa-de-queries.md` |
 | Login, cadastro e sessões | `server/auth-routes.ts`, `server/security.ts` |
 | Recuperação, confirmação e troca de senha | `server/account-routes.ts`, `server/account-tokens.ts` |
 | E-mail SMTP e captura local | `server/mail.ts` |

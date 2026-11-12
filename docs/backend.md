@@ -29,6 +29,80 @@ pnpm start
 esse modo localmente, configure `APP_ORIGIN=http://localhost:3001`.
 `pnpm preview` serve somente o frontend; use `pnpm start` para testar o conjunto.
 
+## PostgreSQL
+
+O banco de destino é PostgreSQL 14+. A conexão vem de `DATABASE_URL`; em
+produção ela é obrigatória, para o servidor nunca cair num padrão local.
+
+### Cluster de desenvolvimento
+
+O projeto sobe o **seu próprio cluster**, em `var/pg16`, na porta **5433** e só
+pelo loopback. Ele não encosta em nenhum PostgreSQL já instalado na máquina e
+não exige a senha do superusuário do sistema — só os binários do PostgreSQL 16
+(`PG_BIN` aponta a pasta `bin` se não for a padrão).
+
+```powershell
+pnpm db:init      # cria o cluster e o banco; uma vez só
+pnpm db:migrate   # aplica o esquema e carrega os catálogos
+```
+
+Depois disso, no dia a dia:
+
+```powershell
+pnpm db:up        # sobe
+pnpm db:down      # derruba
+```
+
+`var/` é ignorado pelo git, então o cluster não vai para o repositório. Para
+usar um PostgreSQL seu ou um banco hospedado, ignore estes comandos e aponte a
+`DATABASE_URL` para onde quiser — `pnpm db:migrate` funciona igual.
+
+Se preferir criar o papel na sua própria instância, como superusuário:
+
+```sql
+CREATE ROLE vitrineic LOGIN PASSWORD 'vitrineic';
+CREATE DATABASE vitrineic OWNER vitrineic;
+```
+
+O comando roda os arquivos de `server/db/migrations/` em ordem, cada um numa
+transação, registrando o que já foi aplicado em `schema_migration`. Em seguida
+`server/db/sync-catalog.ts` recarrega unidades, cursos, competências com seus
+apelidos, idiomas, níveis, áreas e escopos a partir de `src/data/`, que
+continua sendo a fonte única. A operação é idempotente e nunca apaga linhas.
+
+O esquema está em `server/db/migrations/001_schema.sql` e segue o modelo de
+`docs/modelo-dados-3fn.md`. Backup e restauração passam a ser `pg_dump` e
+`pg_restore`.
+
+### Banco hospedado
+
+Para testar sem Postgres local, use um Postgres gerenciado e aponte a
+`DATABASE_URL` para ele — `pnpm db:migrate` funciona igual.
+
+| Opção | Gratuito | Cuidado |
+|---|---|---|
+| **Neon** | 1 GB por projeto, sem prazo | compute suspende após 5 min ociosos e acorda na consulta seguinte |
+| Supabase | 500 MB | projeto é pausado após 7 dias sem uso e precisa ser retomado à mão |
+| Render | 1 GB | **o banco gratuito expira 30 dias após a criação** |
+
+Conexões hospedadas exigem TLS. O `pg` lê o `sslmode` da URL; prefira
+`?sslmode=verify-full` explicitamente, porque `require` muda de significado no
+`pg` 9. Exemplo:
+
+```
+DATABASE_URL=postgresql://usuario:senha@ep-xxx.sa-east-1.aws.neon.tech/vitrineic?sslmode=verify-full
+```
+
+O app consulta `/api/state` a cada 30 s com a aba visível
+(`src/components/app/ApiBoundary.tsx`), o que mantém o compute acordado
+enquanto alguém estiver com o site aberto. Em plano gratuito com horas de
+compute medidas, isso consome cota — ver `docs/mapa-de-queries.md`.
+
+> **Migração em andamento.** O app ainda é servido pelo SQLite
+> (`DATABASE_PATH`). A fundação PostgreSQL — conexão, migrações, esquema e
+> catálogos — já está no lugar; as leituras e escritas das rotas ainda não
+> foram portadas. Enquanto isso, as duas variáveis convivem no `.env`.
+
 ## Dados fictícios e curadoria
 
 Para uma demonstração, configure **DEMO_MODE=true** no `.env`, com

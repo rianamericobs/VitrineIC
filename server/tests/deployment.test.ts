@@ -14,6 +14,7 @@ test("Render usa origem pública automática, permite domínio próprio e preser
   const env: NodeJS.ProcessEnv = {
     NODE_ENV: "production", RENDER: "true", RENDER_EXTERNAL_URL: "https://vitrineic-teste.onrender.com",
     MAIL_MODE: "disabled", REQUIRE_VERIFIED_EMAIL: "false",
+    DATABASE_URL: "postgresql://usuario:senha@db.example.com:5432/vitrineic",
   };
   assert.equal(readConfig(env).origin, "https://vitrineic-teste.onrender.com");
   env.APP_ORIGIN = "https://vitrine.example.com";
@@ -31,6 +32,17 @@ test("Render usa origem pública automática, permite domínio próprio e preser
   env.RESEND_API_KEY = "chave-de-teste";
   env.MAIL_FROM = "vitrine@example.com";
   assert.equal(readConfig(env).mail.mode, "resend");
+
+  // PostgreSQL: produção nunca cai no padrão local, e a URL precisa ser postgres.
+  const semBanco = { ...env };
+  delete semBanco.DATABASE_URL;
+  assert.throws(() => readConfig(semBanco), /DATABASE_URL/);
+  assert.throws(() => readConfig({ ...env, DATABASE_URL: "mysql://u:s@host/db" }), /postgres/);
+  assert.equal(
+    readConfig({ ...env, DATABASE_URL: "postgres://u:s@host:5432/db" }).databaseUrl,
+    "postgres://u:s@host:5432/db",
+  );
+  assert.match(readConfig({ NODE_ENV: "development" }).databaseUrl, /^postgresql:\/\//);
 });
 
 test("bootstrap cria somente curadoria, exige opt-in e nunca redefine credenciais existentes", async t => {
