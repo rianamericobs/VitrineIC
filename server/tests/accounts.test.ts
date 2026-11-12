@@ -1,8 +1,5 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
 import type { FastifyInstance, InjectOptions } from "fastify";
 import { buildApp } from "../app";
 import { readConfig } from "../config";
@@ -10,6 +7,9 @@ import type { MailMessage } from "../mail";
 import type { VitrineState } from "@/types/api";
 import { tokenHash, verifyPassword } from "../security";
 import { RECOVERY_MESSAGE } from "../account-tokens";
+import { contas } from "../db/repositories";
+import { migrate } from "../db/migrate";
+import { configDeTeste, prepararBanco } from "./apoio";
 
 const headers = { "x-vitrine-client": "web", origin: "http://localhost:5173" };
 const student = { name: "Estudante de teste", email: "conta@ic.ufal.br", password: "teste12345", unit: "IC", course: "Ciência da Computação", consent: true };
@@ -24,7 +24,12 @@ const project = { title: "Projeto", description: "Uma descrição", stack: ["Rea
 
 async function setup(required = false) {
   const messages: MailMessage[] = [];
-  const c = await buildApp({ databasePath: ":memory:", logger: false, production: false, requireVerifiedEmail: required, mail: { ...readConfig().mail, mode: "file" } }, { mailer: { async send(message) { messages.push(message); } } });
+  const limpo = await prepararBanco();
+  await limpo.close();
+  const c = await buildApp(
+    configDeTeste({ production: false, requireVerifiedEmail: required, mail: { ...readConfig().mail, mode: "file" } }),
+    { mailer: { async send(message) { messages.push(message); } } },
+  );
   const signup = await call(c.app, "POST", "/api/auth/students", student);
   assert.equal(signup.statusCode, 201, signup.body);
   await c.mail.drain();
@@ -37,7 +42,7 @@ test("confirmação de e-mail: posse, privacidade, consumo único e publicação
   const c = await setup(true); t.after(() => c.app.close());
   assert.equal(c.messages.length, 1);
   const token = tokenOf(c.messages[0], "verify-email");
-  const stored = c.db.sql.prepare("SELECT token_hash FROM account_tokens").get()!;
+  const stored = (await c.db.sql.row<{ token_hash: string }>("SELECT token_hash FROM token_conta"))!;
   assert.equal(stored.token_hash, tokenHash(token));
   assert.ok(!JSON.stringify(stored).includes(token));
   await call(c.app, "PATCH", `/api/students/${c.studentId}`, { skills: ["React"] }, c.cookie);
@@ -71,7 +76,7 @@ test("recuperação: resposta genérica, expiração, senha nova e encerramento 
   assert.equal(c.messages.length, 1);
   const first = tokenOf(c.messages[0], "reset-password");
   assert.equal((await call(c.app, "POST", "/api/auth/reset-password", { token: first, password: "curta" })).statusCode, 400);
-  c.db.sql.prepare("UPDATE account_tokens SET expires_at=0 WHERE purpose='reset_password'").run();
+  await c.db.sql.run("UPDATE token_conta SET expira_em = now() - interval '1 hour' WHERE proposito = 'reset_password'");
   assert.equal((await call(c.app, "POST", "/api/auth/reset-password", { token: first, password: "nova123456" })).statusCode, 400);
   await call(c.app, "POST", "/api/auth/forgot-password", { email: student.email }); await c.mail.drain();
   const second = tokenOf(c.messages[1], "reset-password");
@@ -106,7 +111,7 @@ test("troca de senha exige senha atual, preserva a sessão atual e invalida sess
   assert.equal((await call(c.app, "GET", "/api/auth/me", undefined, c.cookie)).statusCode, 401);
   assert.equal((await call(c.app, "POST", "/api/auth/reset-password", { token: oldReset, password: "ataque12345" })).statusCode, 400);
   assert.equal((await call(c.app, "POST", "/api/auth/verify-email", { token: oldVerification })).statusCode, 400);
-  assert.ok(await verifyPassword("alterada123", c.db.get("accounts", c.account.id)!.passwordHash));
+  assert.ok(await verifyPassword("alterada123", (await contas.porId(c.db.sql, c.account.id))!.passwordHash));
   assert.equal((await call(c.app, "POST", "/api/auth/logout-all", undefined, currentCookie)).statusCode, 200);
   assert.equal((await call(c.app, "GET", "/api/auth/me", undefined, currentCookie)).statusCode, 401);
 });
@@ -128,23 +133,28 @@ test("recuperação concorrente consome token uma única vez e não encerra outr
 test("reenvio tem intervalo, link substituído expira e falha de envio permite nova tentativa", async t => {
   const messages: MailMessage[] = [];
   let fail = true;
-  const c = await buildApp({ databasePath: ":memory:", logger: false, mail: { ...readConfig().mail, mode: "file" } }, { mailer: { async send(message) { if (fail) throw new Error("Falha simulada"); messages.push(message); } } });
+  const limpo = await prepararBanco();
+  await limpo.close();
+  const c = await buildApp(
+    configDeTeste({ mail: { ...readConfig().mail, mode: "file" } }),
+    { mailer: { async send(message) { if (fail) throw new Error("Falha simulada"); messages.push(message); } } },
+  );
   t.after(() => c.app.close());
   const signup = await call(c.app, "POST", "/api/auth/students", student);
   const cookie = cookieOf(signup);
   await c.mail.drain();
-  assert.equal(c.db.sql.prepare("SELECT count(*) AS n FROM account_tokens").get()!.n, 0);
+  assert.equal(Number((await c.db.sql.row<{ n: string }>("SELECT count(*) n FROM token_conta"))!.n), 0);
   fail = false;
   await call(c.app, "POST", "/api/auth/verification-email", undefined, cookie); await c.mail.drain();
   assert.equal(messages.length, 1);
   const original = tokenOf(messages[0], "verify-email");
   await call(c.app, "POST", "/api/auth/verification-email", undefined, cookie); await c.mail.drain();
   assert.equal(messages.length, 1);
-  c.db.sql.prepare("UPDATE account_tokens SET created_at=0").run();
+  await c.db.sql.run("UPDATE token_conta SET criado_em = now() - interval '1 hour'");
   await call(c.app, "POST", "/api/auth/verification-email", undefined, cookie); await c.mail.drain();
   assert.equal(messages.length, 2);
   assert.equal((await call(c.app, "POST", "/api/auth/verify-email", { token: original })).statusCode, 400);
-  c.db.sql.prepare("UPDATE account_tokens SET expires_at=0").run();
+  await c.db.sql.run("UPDATE token_conta SET expira_em = now() - interval '1 hour'");
   assert.equal((await call(c.app, "POST", "/api/auth/verify-email", { token: tokenOf(messages[1], "verify-email") })).statusCode, 400);
 });
 
@@ -157,17 +167,20 @@ test("limites persistem por conta entre sessões e endpoints exigem CSRF", async
   assert.equal((await call(c.app, "POST", "/api/auth/forgot-password", { email: student.email })).statusCode, 429);
 });
 
-test("migração versão 1 preserva contas e dados existentes", async t => {
-  const folder = mkdtempSync(join(tmpdir(), "vitrine-migration-"));
-  const path = join(folder, "db.sqlite");
-  const old = await buildApp({ databasePath: path, logger: false });
-  const signup = await call(old.app, "POST", "/api/auth/students", student);
+test("migração é aplicada uma vez e preserva os dados existentes", async t => {
+  const limpo = await prepararBanco();
+  await limpo.close();
+  const primeira = await buildApp(configDeTeste());
+  const signup = await call(primeira.app, "POST", "/api/auth/students", student);
   const id = signup.json<VitrineState>().accounts[0].id;
-  old.db.sql.exec("DROP TABLE account_tokens; DELETE FROM migrations WHERE version=2;");
-  await old.app.close();
-  const reopened = await buildApp({ databasePath: path, logger: false });
-  t.after(async () => { await reopened.app.close(); assert.equal(dirname(folder), tmpdir()); rmSync(folder, { recursive: true, force: true }); });
-  assert.equal(reopened.db.get("accounts", id)!.email, student.email);
-  assert.deepEqual(reopened.db.sql.prepare("SELECT version FROM migrations ORDER BY version").all().map(r => r.version), [1, 2]);
-  assert.equal(reopened.db.sql.prepare("SELECT count(*) AS n FROM account_tokens").get()!.n, 0);
+  await primeira.app.close();
+
+  // Reabrir não reaplica o esquema nem duplica as versões registradas.
+  const reaberta = await buildApp(configDeTeste());
+  t.after(() => reaberta.app.close());
+  assert.deepEqual(await migrate(reaberta.db), [], "nada novo a aplicar");
+  const versoes = await reaberta.db.sql.rows<{ versao: string }>(
+    "SELECT versao FROM schema_migration ORDER BY versao");
+  assert.deepEqual(versoes.map(v => v.versao), ["001_schema.sql"]);
+  assert.equal((await contas.porId(reaberta.db.sql, id))!.email, student.email);
 });

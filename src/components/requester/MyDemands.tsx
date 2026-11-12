@@ -6,6 +6,7 @@ import { useVitrine } from "@/lib/store";
 import { ArrowIcon, ChevronIcon } from "@/components/app/Icons";
 import { PageHead } from "@/components/public/PageHead";
 import { PAGE } from "@/components/public/layout";
+import { paraExibicao } from "@/lib/datas";
 
 export function MyDemands({ onNew, onViewMatch }: { onNew: () => void; onViewMatch: (demandId: string) => void }) {
   const { demands, interests } = useVitrine();
@@ -48,7 +49,7 @@ export function MyDemands({ onNew, onViewMatch }: { onNew: () => void; onViewMat
                 <span className="min-w-0 flex-1">
                   <span className="block font-sans text-[15px] text-navy">{d.title}</span>
                   <span className="block font-sans text-[13px] text-navy/55">
-                    Prazo {d.deadline} · {d.area}
+                    Prazo {paraExibicao(d.deadline)} · {d.area}
                     {awaiting > 0 && <span className="text-red"> · {awaiting} aguardando você</span>}
                   </span>
                 </span>

@@ -112,15 +112,20 @@ Cada componente tem seu arquivo. **Abra só o que a tarefa pede** — não leia
 | Tarefa | Arquivo |
 |---|---|
 | Inicialização da API e configuração | `server/app.ts`, `server/index.ts`, `server/config.ts` |
-| Banco e migrações | `server/database.ts`, `server/migrations.ts` |
+| Conexão, migrações e catálogos | `server/db/pool.ts`, `server/db/migrate.ts`, `server/db/sync-catalog.ts` |
+| Leituras e escritas em SQL | `server/db/repositories.ts`, `server/db/mutations.ts` |
+| Estado devolvido pela API | `server/db/snapshot.ts` |
+| Cluster local de desenvolvimento (porta 5433) | `scripts/pg-dev.mjs` — `pnpm db:init`, `db:up`, `db:down` |
+| Esquema 3FN | `server/db/migrations/001_schema.sql`, `docs/modelo-dados-3fn.md` |
+| Mapa das consultas e seus custos | `docs/mapa-de-queries.md` |
 | Login, cadastro e sessões | `server/auth-routes.ts`, `server/security.ts` |
 | Recuperação, confirmação e troca de senha | `server/account-routes.ts`, `server/account-tokens.ts` |
 | E-mail SMTP e captura local | `server/mail.ts` |
 | Perfis, projetos, demandas e interesses | `server/domain-routes.ts`, `server/schemas.ts` |
 | Dados filtrados por conta e indicadores | `server/views.ts` |
 | Mensagens, notificações e anexos | `server/inbox-routes.ts`, `server/notifications.ts`, `server/file-routes.ts` |
-| Contas de demonstração e criação de curadores | `server/seed.ts`, `server/create-curator.ts` |
-| Testes de integração | `server/tests/` |
+| Contas de demonstração e criação de curadores | `server/db/seed.ts`, `server/create-curator.ts` |
+| Testes de integração | `server/tests/` (apoio em `server/tests/apoio.ts`) |
 | Configuração e contrato HTTP | `docs/backend.md` |
 
 ## Contexto
@@ -191,13 +196,23 @@ texturizadas com a classe `.vt-stone`. Detalhes em `context/04-design-system.md`
 - Os números do painel de impacto são **derivados** das bases em tempo de
   render. Não digite indicadores em `data/impact.ts` — só o que não dá para
   derivar (depoimentos, metas) mora lá.
-- **Persistência**: contas e mudanças ficam no SQLite do servidor. Senhas são
-  hashes scrypt; sessões usam cookie HttpOnly. A chave antiga `vitrineic:v1`
-  é removida na inicialização. Contas de exemplo, somente via seed em desenvolvimento
+- **Persistência**: PostgreSQL, esquema em 3FN (`docs/modelo-dados-3fn.md`).
+  `pnpm db:init` cria um cluster local só do projeto na porta 5433;
+  `pnpm db:up` e `pnpm db:down` ligam e desligam. Senhas são hashes scrypt;
+  sessões usam cookie HttpOnly. Contas de exemplo, somente via seed em desenvolvimento
   (senha `demo1234`): `estudante@ic.ufal.br`, `contato@techbr.com.br`,
   `curadoria@ic.ufal.br`. Não há rota pública de restauração do banco.
 - O backend valida permissões e filtra contatos; não confie em filtros do frontend.
 - E-mail usa SMTP configurável ou arquivos locais de desenvolvimento. Em produção,
   a confirmação de posse é exigida por padrão; veja `docs/backend.md`.
+- Leitura e escrita passam por `server/db/repositories.ts` e
+  `server/db/mutations.ts`; nenhuma rota monta SQL por conta própria. O estado
+  da API sai de `server/db/snapshot.ts`, com consultas já filtradas pela conta.
+  O levantamento de custo das consultas está em `docs/mapa-de-queries.md`.
+- Datas: o banco guarda `date` e `timestamptz`; a tela formata com
+  `paraExibicao` e `comoDecorrido`, de `src/lib/datas.ts`. Não imprima o campo
+  cru — antes da migração o mesmo prazo aparecia em dois formatos.
+- `pnpm test` precisa do banco de teste (`vitrineic_test`, criado por
+  `pnpm db:init`) e roda em série, porque todos os casos o compartilham.
 - A navegação principal continua por estado; links de confirmação/recuperação
   usam fragmentos. `pnpm test`, `pnpm typecheck` e `pnpm build` verificam o projeto.

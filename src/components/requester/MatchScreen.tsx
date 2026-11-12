@@ -15,6 +15,7 @@ import { PageHead } from "@/components/public/PageHead";
 import { PublicProfile } from "@/components/public/PublicProfile";
 import { PAGE } from "@/components/public/layout";
 import type { Demand, Interest } from "@/types";
+import { comoDecorrido } from "@/lib/datas";
 
 /** Card de interessado no formato do Figma: avatar, curso, status, nota e ação embaixo. */
 function InterestCard({
@@ -49,7 +50,7 @@ function InterestCard({
       </div>
 
       <p className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-[0.08em] text-navy/50">
-        {ORIGIN_LABEL[interest.origin]} · {demand.title} · {interest.createdAt}
+        {ORIGIN_LABEL[interest.origin]} · {demand.title} · {comoDecorrido(interest.createdAt)}
         {inProject && <InProjectBadge />}
       </p>
 

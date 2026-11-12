@@ -15,8 +15,8 @@ pnpm dev
 
 O comando inicia a API em `http://127.0.0.1:3001` e o frontend em
 `http://localhost:5173`. Abra **localhost**, conforme `APP_ORIGIN`.
-O proxy do Vite encaminha `/api` ao servidor. O banco é criado automaticamente
-em `var/vitrineic.sqlite`. Sem carga de exemplos, ele começa vazio.
+O proxy do Vite encaminha `/api` ao servidor. O esquema é aplicado na subida;
+sem carga de exemplos, o banco começa vazio.
 
 ```powershell
 pnpm typecheck
@@ -25,9 +25,83 @@ pnpm build
 pnpm start
 ```
 
+Os testes usam o banco `vitrineic_test`, criado junto pelo `pnpm db:init`, e
+rodam em série porque o compartilham. `TEST_DATABASE_URL` aponta outro destino.
+
 `pnpm start` serve API e `dist/` na mesma porta, 3001 por padrão. Para testar
 esse modo localmente, configure `APP_ORIGIN=http://localhost:3001`.
 `pnpm preview` serve somente o frontend; use `pnpm start` para testar o conjunto.
+
+## PostgreSQL
+
+O banco de destino é PostgreSQL 14+. A conexão vem de `DATABASE_URL`; em
+produção ela é obrigatória, para o servidor nunca cair num padrão local.
+
+### Cluster de desenvolvimento
+
+O projeto sobe o **seu próprio cluster**, em `var/pg16`, na porta **5433** e só
+pelo loopback. Ele não encosta em nenhum PostgreSQL já instalado na máquina e
+não exige a senha do superusuário do sistema — só os binários do PostgreSQL 16
+(`PG_BIN` aponta a pasta `bin` se não for a padrão).
+
+```powershell
+pnpm db:init      # cria o cluster e o banco; uma vez só
+pnpm db:migrate   # aplica o esquema e carrega os catálogos
+```
+
+Depois disso, no dia a dia:
+
+```powershell
+pnpm db:up        # sobe
+pnpm db:down      # derruba
+```
+
+`var/` é ignorado pelo git, então o cluster não vai para o repositório. Sem
+`DATABASE_URL` no ambiente, o servidor e os testes usam esse cluster por
+padrão — `server/tests/repositories.test.ts` precisa dele no ar. Para
+usar um PostgreSQL seu ou um banco hospedado, ignore estes comandos e aponte a
+`DATABASE_URL` para onde quiser — `pnpm db:migrate` funciona igual.
+
+Se preferir criar o papel na sua própria instância, como superusuário:
+
+```sql
+CREATE ROLE vitrineic LOGIN PASSWORD 'vitrineic';
+CREATE DATABASE vitrineic OWNER vitrineic;
+```
+
+O comando roda os arquivos de `server/db/migrations/` em ordem, cada um numa
+transação, registrando o que já foi aplicado em `schema_migration`. Em seguida
+`server/db/sync-catalog.ts` recarrega unidades, cursos, competências com seus
+apelidos, idiomas, níveis, áreas e escopos a partir de `src/data/`, que
+continua sendo a fonte única. A operação é idempotente e nunca apaga linhas.
+
+O esquema está em `server/db/migrations/001_schema.sql` e segue o modelo de
+`docs/modelo-dados-3fn.md`. Backup e restauração passam a ser `pg_dump` e
+`pg_restore`.
+
+### Banco hospedado
+
+Para testar sem Postgres local, use um Postgres gerenciado e aponte a
+`DATABASE_URL` para ele — `pnpm db:migrate` funciona igual.
+
+| Opção | Gratuito | Cuidado |
+|---|---|---|
+| **Neon** | 1 GB por projeto, sem prazo | compute suspende após 5 min ociosos e acorda na consulta seguinte |
+| Supabase | 500 MB | projeto é pausado após 7 dias sem uso e precisa ser retomado à mão |
+| Render | 1 GB | **o banco gratuito expira 30 dias após a criação** |
+
+Conexões hospedadas exigem TLS. O `pg` lê o `sslmode` da URL; prefira
+`?sslmode=verify-full` explicitamente, porque `require` muda de significado no
+`pg` 9. Exemplo:
+
+```
+DATABASE_URL=postgresql://usuario:senha@ep-xxx.sa-east-1.aws.neon.tech/vitrineic?sslmode=verify-full
+```
+
+O app consulta `/api/state` a cada 30 s com a aba visível
+(`src/components/app/ApiBoundary.tsx`), o que mantém o compute acordado
+enquanto alguém estiver com o site aberto. Em plano gratuito com horas de
+compute medidas, isso consome cota — ver `docs/mapa-de-queries.md`.
 
 ## Dados fictícios e curadoria
 
@@ -61,8 +135,8 @@ Crie curadores administrativamente, sem cadastro público:
 ## Arquitetura
 
 - **Fastify + TypeScript**: API, cookies, limites de requisição e uploads.
-- **SQLite (`node:sqlite`)**: arquivo persistente, WAL, chaves estrangeiras,
-  índices e transações. Não exige instalar um servidor de banco separado.
+- **PostgreSQL (`pg`)**: esquema relacional em 3FN, chaves estrangeiras e
+  restrições no banco, migrações versionadas em `server/db/migrations/`.
 - **Zod**: validação no servidor, campos desconhecidos rejeitados e limites de tamanho.
 - **Nodemailer**: entrega por SMTP com TLS ou arquivos locais de desenvolvimento.
 - **React**: `src/lib/store.ts` é cache das respostas. `auth.ts` usa a API;
@@ -285,7 +359,7 @@ O serviço agora precisa de processo Node e **disco persistente**. Configure:
 NODE_ENV=production
 HOST=0.0.0.0
 APP_ORIGIN=https://seu-dominio
-DATABASE_PATH=/data/vitrineic.sqlite
+DATABASE_URL=postgresql://usuario:senha@host:5432/vitrineic?sslmode=verify-full
 DEMO_MODE=false
 MAIL_MODE=smtp
 MAIL_FROM=seu-remetente@seu-dominio
@@ -302,13 +376,13 @@ Na Railway, monte um volume em `/data`, defina as variáveis acima e use
 plataforma. Crie o primeiro curador usando o banco desse ambiente. Não carregue
 o banco de demonstração. O frontend e a API devem ficar na **mesma origem**.
 
-SQLite atende esta implantação com uma instância e volume local. Para múltiplas
+PostgreSQL atende esta implantação. Para múltiplas
 réplicas ou maior volume, migre a camada `server/database.ts` para PostgreSQL e
 os anexos para armazenamento de objetos. O rate limit atual fica na memória de
 cada processo; o servidor não confia em `X-Forwarded-For` enviado pelo cliente.
 Atrás de proxy, configure também os limites de tráfego do provedor.
 
-Faça backup consistente com o servidor parado (ou use a API de backup do SQLite).
+Faça backup com `pg_dump` e restaure com `pg_restore`.
 Não copie apenas o arquivo principal enquanto houver escrita em modo WAL.
 O comando `pnpm db:backup`, com `DATABASE_PATH` e `BACKUP_PATH`, gera um snapshot
 consistente com `VACUUM INTO`, incluindo anexos, mesmo com WAL em uso.

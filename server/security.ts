@@ -1,7 +1,9 @@
 import { randomBytes, scrypt, timingSafeEqual, createHash } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { Database, StoredAccount } from "./database";
+import type { Database } from "./db/pool";
+import type { StoredAccount } from "./db/types";
 import type { Config } from "./config";
+import { contas } from "./db/repositories";
 import { ensure } from "./errors";
 import type { Role } from "@/types";
 
@@ -18,6 +20,8 @@ export async function hashPassword(password: string) {
 
 export async function verifyPassword(password: string, hash: string) {
   const [, salt, expected] = hash.split(":");
+  // Hash fora do formato nunca chega ao scrypt: viraria erro 500 em vez de senha errada.
+  if (!salt || !expected) return false;
   const actual = await derive(password, salt);
   const bytes = Buffer.from(expected, "hex");
   return bytes.length === actual.length && timingSafeEqual(bytes, actual);
@@ -25,39 +29,47 @@ export async function verifyPassword(password: string, hash: string) {
 
 export const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
 
-export function accountFor(db: Database, request: FastifyRequest): StoredAccount | undefined {
+export async function accountFor(db: Database, request: FastifyRequest): Promise<StoredAccount | undefined> {
   const token = request.cookies[COOKIE];
   if (!token) return;
-  const row = db.sql.prepare("SELECT account_id FROM sessions WHERE token_hash=? AND expires_at>?").get(tokenHash(token), Date.now());
-  return row ? db.get("accounts", String(row.account_id)) : undefined;
+  const sessao = await db.sql.row<{ conta_id: string }>(
+    "SELECT conta_id FROM sessao WHERE token_hash = $1 AND expira_em > now()", [tokenHash(token)]);
+  return sessao ? contas.porId(db.sql, sessao.conta_id) : undefined;
 }
 
-export function requireAccount(db: Database, request: FastifyRequest, role?: Role) {
-  const account = accountFor(db, request);
+export async function requireAccount(db: Database, request: FastifyRequest, role?: Role) {
+  const account = await accountFor(db, request);
   ensure(account, 401, "Entre na sua conta para continuar.");
   ensure(!role || account.role === role, 403, "Seu perfil não tem permissão para esta ação.");
   return account;
 }
 
-export function clearSession(db: Database, request: FastifyRequest, reply: FastifyReply) {
+export async function requireVerifiedAccount(db: Database, request: FastifyRequest, config: Config, role?: Role) {
+  const account = await requireAccount(db, request, role);
+  ensure(!config.requireVerifiedEmail || account.emailVerifiedAt, 403,
+    "Confirme seu e-mail para continuar.");
+  return account;
+}
+
+export async function clearSession(db: Database, request: FastifyRequest, reply: FastifyReply) {
   const token = request.cookies[COOKIE];
-  if (token) db.sql.prepare("DELETE FROM sessions WHERE token_hash=?").run(tokenHash(token));
+  if (token) await db.sql.run("DELETE FROM sessao WHERE token_hash = $1", [tokenHash(token)]);
   reply.clearCookie(COOKIE, { path: "/" });
 }
 
-export function createSession(db: Database, config: Config, request: FastifyRequest, reply: FastifyReply, account: StoredAccount) {
-  clearSession(db, request, reply);
-  db.sql.prepare("DELETE FROM sessions WHERE expires_at<=?").run(Date.now());
+export async function createSession(
+  db: Database, config: Config, request: FastifyRequest, reply: FastifyReply, account: StoredAccount,
+) {
+  await clearSession(db, request, reply);
+  await db.sql.run("DELETE FROM sessao WHERE expira_em <= now()");
   const token = randomBytes(32).toString("base64url");
-  db.sql.prepare("INSERT INTO sessions(token_hash,account_id,expires_at) VALUES(?,?,?)")
-    .run(tokenHash(token), account.id, Date.now() + SESSION_SECONDS * 1000);
-  reply.setCookie(COOKIE, token, { httpOnly: true, secure: config.production, sameSite: "strict", path: "/", maxAge: SESSION_SECONDS });
+  await db.sql.run(
+    "INSERT INTO sessao (token_hash, conta_id, expira_em) VALUES ($1, $2, now() + ($3 || ' seconds')::interval)",
+    [tokenHash(token), account.id, SESSION_SECONDS],
+  );
+  reply.setCookie(COOKIE, token, {
+    httpOnly: true, secure: config.production, sameSite: "strict", path: "/", maxAge: SESSION_SECONDS,
+  });
 }
 
-export function publicAccount({ passwordHash: _hash, credentialVersion: _version, ...account }: StoredAccount) { return account; }
-
-export function requireVerifiedAccount(db: Database, request: FastifyRequest, config: Config, role?: Role) {
-  const account = requireAccount(db, request, role);
-  ensure(!config.requireVerifiedEmail || account.emailVerifiedAt, 403, "Confirme seu e-mail para continuar.");
-  return account;
-}
+export const publicAccount = contas.publica;

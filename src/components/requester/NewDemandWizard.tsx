@@ -7,24 +7,15 @@ import { Eyebrow } from "@/components/public/Eyebrow";
 import { PAGE } from "@/components/public/layout";
 import { addDemand } from "@/lib/store";
 import { required, useValidation } from "@/lib/validate";
+import { AREA_OPTIONS, SCOPE_LABELS } from "@/data/demand-options";
 
 export const WIZARD_STEPS = ["Contexto", "Escopo técnico", "Prazo e formato", "Revisão"];
 
 const TITLES = ["Qual problema resolver?", "O que precisa ser feito?", "Quando e como?", "Revise a demanda."];
 
-export const AREA_OPTIONS = [
-  "Inteligência Artificial / ML",
-  "Engenharia de Software",
-  "Sistemas Web / Mobile",
-  "Redes & Segurança",
-  "Banco de Dados / Dados",
-  "Computação em Nuvem",
-  "Robótica / Embarcados",
-  "Bioinformática",
-  "Outra área",
-];
-
-export const SCOPE_OPTIONS = ["Pequeno (< 3 meses)", "Médio (3–6 meses)", "Grande (6–12 meses)"];
+// O vocabulário mora em @/data/demand-options; o servidor também o carrega.
+export const SCOPE_OPTIONS = SCOPE_LABELS;
+export { AREA_OPTIONS };
 
 export function NewDemandWizard({
   onSuccess,
