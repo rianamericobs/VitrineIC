@@ -76,7 +76,7 @@ CREATE TABLE topico_interesse (
 -- ───────────────────────── Identidade e acesso ─────────────────────────
 
 CREATE TABLE conta (
-  id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  id                  text PRIMARY KEY,
   email               text NOT NULL UNIQUE CHECK (email = lower(email) AND length(email) <= 254),
   nome                text NOT NULL,
   papel               text NOT NULL CHECK (papel IN ('student', 'requester', 'curator')),
@@ -88,7 +88,7 @@ CREATE TABLE conta (
 
 CREATE TABLE sessao (
   token_hash text PRIMARY KEY,
-  conta_id   uuid NOT NULL REFERENCES conta(id) ON DELETE CASCADE,
+  conta_id   text NOT NULL REFERENCES conta(id) ON DELETE CASCADE,
   expira_em  timestamptz NOT NULL
 );
 -- Faltava no SQLite: logout-all e troca de senha apagavam por conta com varredura.
@@ -97,7 +97,7 @@ CREATE INDEX sessao_expira  ON sessao(expira_em);
 
 CREATE TABLE token_conta (
   token_hash        text PRIMARY KEY,
-  conta_id          uuid NOT NULL REFERENCES conta(id) ON DELETE CASCADE,
+  conta_id          text NOT NULL REFERENCES conta(id) ON DELETE CASCADE,
   proposito         text NOT NULL CHECK (proposito IN ('reset_password', 'verify_email')),
   versao_credencial integer NOT NULL,
   criado_em         timestamptz NOT NULL DEFAULT now(),
@@ -109,8 +109,8 @@ CREATE INDEX token_conta_expira ON token_conta(expira_em);
 -- ───────────────────────── Perfil do estudante ─────────────────────────
 
 CREATE TABLE estudante (
-  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  conta_id           uuid UNIQUE REFERENCES conta(id) ON DELETE CASCADE,
+  id                 text PRIMARY KEY,
+  conta_id           text UNIQUE REFERENCES conta(id) ON DELETE CASCADE,
   curso_id           uuid REFERENCES curso(id),
   matricula          text CHECK (matricula ~ '^[0-9]{0,30}$'),
   semestre           text,
@@ -130,7 +130,7 @@ CREATE TABLE estudante (
 CREATE INDEX estudante_curso ON estudante(curso_id);
 
 CREATE TABLE estudante_competencia (
-  estudante_id   uuid NOT NULL REFERENCES estudante(id) ON DELETE CASCADE,
+  estudante_id   text NOT NULL REFERENCES estudante(id) ON DELETE CASCADE,
   competencia_id uuid NOT NULL REFERENCES competencia(id),
   nivel          smallint REFERENCES nivel_competencia(nivel),
   PRIMARY KEY (estudante_id, competencia_id)
@@ -138,21 +138,21 @@ CREATE TABLE estudante_competencia (
 CREATE INDEX estudante_competencia_competencia ON estudante_competencia(competencia_id);
 
 CREATE TABLE estudante_idioma (
-  estudante_id uuid NOT NULL REFERENCES estudante(id) ON DELETE CASCADE,
+  estudante_id text NOT NULL REFERENCES estudante(id) ON DELETE CASCADE,
   idioma_id    uuid NOT NULL REFERENCES idioma(id),
   nivel        smallint NOT NULL REFERENCES nivel_idioma(nivel),
   PRIMARY KEY (estudante_id, idioma_id)
 );
 
 CREATE TABLE estudante_topico (
-  estudante_id uuid NOT NULL REFERENCES estudante(id) ON DELETE CASCADE,
+  estudante_id text NOT NULL REFERENCES estudante(id) ON DELETE CASCADE,
   topico_id    uuid NOT NULL REFERENCES topico_interesse(id),
   PRIMARY KEY (estudante_id, topico_id)
 );
 
 CREATE TABLE projeto_estudante (
-  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  estudante_id uuid NOT NULL REFERENCES estudante(id) ON DELETE CASCADE,
+  id           text PRIMARY KEY,
+  estudante_id text NOT NULL REFERENCES estudante(id) ON DELETE CASCADE,
   titulo       text NOT NULL,
   descricao    text NOT NULL,
   situacao     text NOT NULL CHECK (situacao IN ('ideation', 'coding', 'review', 'done')),
@@ -164,14 +164,14 @@ CREATE TABLE projeto_estudante (
 CREATE INDEX projeto_estudante_estudante ON projeto_estudante(estudante_id);
 
 CREATE TABLE projeto_competencia (
-  projeto_id     uuid NOT NULL REFERENCES projeto_estudante(id) ON DELETE CASCADE,
+  projeto_id     text NOT NULL REFERENCES projeto_estudante(id) ON DELETE CASCADE,
   competencia_id uuid NOT NULL REFERENCES competencia(id),
   PRIMARY KEY (projeto_id, competencia_id)
 );
 
 CREATE TABLE anexo_estudante (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  estudante_id  uuid NOT NULL REFERENCES estudante(id) ON DELETE CASCADE,
+  estudante_id  text NOT NULL REFERENCES estudante(id) ON DELETE CASCADE,
   nome          text NOT NULL,
   categoria     text NOT NULL CHECK (categoria IN ('tech', 'language', 'portfolio')),
   mime          text NOT NULL,
@@ -185,8 +185,8 @@ CREATE INDEX anexo_estudante_estudante ON anexo_estudante(estudante_id);
 -- ───────────────────────── Solicitante ─────────────────────────
 
 CREATE TABLE solicitante (
-  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  conta_id         uuid UNIQUE REFERENCES conta(id) ON DELETE CASCADE,
+  id               text PRIMARY KEY,
+  conta_id         text UNIQUE REFERENCES conta(id) ON DELETE CASCADE,
   nome             text NOT NULL UNIQUE,
   tipo_codigo      text NOT NULL REFERENCES tipo_solicitante(codigo),
   rotulo_exibicao  text,
@@ -199,9 +199,9 @@ CREATE TABLE solicitante (
 -- ───────────────────────── Demanda ─────────────────────────
 
 CREATE TABLE demanda (
-  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  protocolo       text NOT NULL UNIQUE,
-  solicitante_id  uuid NOT NULL REFERENCES solicitante(id),
+  -- O id e o proprio protocolo mostrado ao solicitante: VIC-2026-0046.
+  id              text PRIMARY KEY,
+  solicitante_id  text NOT NULL REFERENCES solicitante(id),
   titulo          text NOT NULL,
   descricao       text NOT NULL,
   area_id         uuid REFERENCES area(id),
@@ -221,7 +221,7 @@ CREATE INDEX demanda_solicitante ON demanda(solicitante_id);
 CREATE INDEX demanda_status      ON demanda(status);
 
 CREATE TABLE demanda_competencia (
-  demanda_id     uuid NOT NULL REFERENCES demanda(id) ON DELETE CASCADE,
+  demanda_id     text NOT NULL REFERENCES demanda(id) ON DELETE CASCADE,
   competencia_id uuid NOT NULL REFERENCES competencia(id),
   PRIMARY KEY (demanda_id, competencia_id)
 );
@@ -229,9 +229,9 @@ CREATE INDEX demanda_competencia_competencia ON demanda_competencia(competencia_
 
 CREATE TABLE demanda_historico_status (
   id                     uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  demanda_id             uuid NOT NULL REFERENCES demanda(id) ON DELETE CASCADE,
+  demanda_id             text NOT NULL REFERENCES demanda(id) ON DELETE CASCADE,
   status                 text NOT NULL,
-  alterado_por_conta_id  uuid REFERENCES conta(id) ON DELETE SET NULL,
+  alterado_por_conta_id  text REFERENCES conta(id) ON DELETE SET NULL,
   observacao             text,
   alterado_em            timestamptz NOT NULL DEFAULT now()
 );
@@ -240,15 +240,15 @@ CREATE INDEX demanda_historico_demanda ON demanda_historico_status(demanda_id);
 -- ───────────────────────── Match ─────────────────────────
 
 CREATE TABLE interesse (
-  id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  demanda_id           uuid NOT NULL REFERENCES demanda(id) ON DELETE CASCADE,
-  estudante_id         uuid NOT NULL REFERENCES estudante(id),
+  id                   text PRIMARY KEY,
+  demanda_id           text NOT NULL REFERENCES demanda(id) ON DELETE CASCADE,
+  estudante_id         text NOT NULL REFERENCES estudante(id),
   origem               text NOT NULL CHECK (origem IN ('candidatura', 'convite', 'sugestao')),
   justificativa        text,
   status               text NOT NULL CHECK (status IN (
                          'aguardando_estudante', 'aguardando_solicitante', 'contato_liberado',
                          'recusado_estudante', 'recusado_solicitante')),
-  criado_por_conta_id  uuid REFERENCES conta(id) ON DELETE SET NULL,
+  criado_por_conta_id  text REFERENCES conta(id) ON DELETE SET NULL,
   criado_em            timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT interesse_sugestao_justificada
     CHECK (origem <> 'sugestao' OR (justificativa IS NOT NULL AND length(btrim(justificativa)) > 0))
@@ -261,7 +261,7 @@ CREATE INDEX interesse_demanda   ON interesse(demanda_id);
 CREATE INDEX interesse_status    ON interesse(status);
 
 CREATE TABLE interesse_resposta (
-  interesse_id   uuid NOT NULL REFERENCES interesse(id) ON DELETE CASCADE,
+  interesse_id   text NOT NULL REFERENCES interesse(id) ON DELETE CASCADE,
   lado           text NOT NULL CHECK (lado IN ('estudante', 'solicitante')),
   aceito         boolean NOT NULL,
   motivo_recusa  text,
@@ -275,8 +275,8 @@ CREATE TABLE interesse_resposta (
 
 CREATE TABLE mensagem (
   id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  interesse_id        uuid NOT NULL REFERENCES interesse(id) ON DELETE CASCADE,
-  remetente_conta_id  uuid NOT NULL REFERENCES conta(id) ON DELETE CASCADE,
+  interesse_id        text NOT NULL REFERENCES interesse(id) ON DELETE CASCADE,
+  remetente_conta_id  text NOT NULL REFERENCES conta(id) ON DELETE CASCADE,
   conteudo            text NOT NULL CHECK (length(conteudo) BETWEEN 1 AND 5000),
   enviada_em          timestamptz NOT NULL DEFAULT now()
 );
@@ -284,10 +284,10 @@ CREATE INDEX mensagem_interesse ON mensagem(interesse_id);
 
 CREATE TABLE notificacao (
   id                     uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  destinatario_conta_id  uuid NOT NULL REFERENCES conta(id) ON DELETE CASCADE,
+  destinatario_conta_id  text NOT NULL REFERENCES conta(id) ON DELETE CASCADE,
   tipo                   text NOT NULL CHECK (tipo IN ('SISTEMA', 'MENSAGEM')),
-  demanda_id             uuid REFERENCES demanda(id) ON DELETE CASCADE,
-  interesse_id           uuid REFERENCES interesse(id) ON DELETE CASCADE,
+  demanda_id             text REFERENCES demanda(id) ON DELETE CASCADE,
+  interesse_id           text REFERENCES interesse(id) ON DELETE CASCADE,
   mensagem_id            uuid REFERENCES mensagem(id) ON DELETE CASCADE,
   conteudo               text,
   criada_em              timestamptz NOT NULL DEFAULT now(),
