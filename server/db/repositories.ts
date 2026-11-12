@@ -12,7 +12,7 @@ import type { StoredAccount } from "./types";
  * necessidade — era esse o problema do acesso anterior.
  */
 
-const ESTUDANTE = `
+export const SQL_ESTUDANTE = `
   SELECT
     e.id,
     co.nome                                   AS name,
@@ -73,7 +73,7 @@ const ESTUDANTE = `
   ) prj ON true
 `;
 
-const DEMANDA = `
+export const SQL_DEMANDA = `
   SELECT
     d.id, d.titulo AS title, s.nome AS company,
     COALESCE(a.nome, '')  AS area,
@@ -96,7 +96,7 @@ const DEMANDA = `
   ) sk ON true
 `;
 
-const INTERESSE = `
+export const SQL_INTERESSE = `
   SELECT
     i.id, i.demanda_id AS "demandId", i.estudante_id AS "studentId",
     i.origem AS origin, i.justificativa AS justification, i.status,
@@ -132,7 +132,7 @@ const CONTA = `
 `;
 
 /** O driver devolve `null` onde o tipo do domínio espera campo ausente. */
-function limpar<T extends object>(linha: T): T {
+export function limpar<T extends object>(linha: T): T {
   for (const [chave, valor] of Object.entries(linha)) {
     if (valor === null) delete (linha as Record<string, unknown>)[chave];
   }
@@ -140,13 +140,13 @@ function limpar<T extends object>(linha: T): T {
 }
 
 export const estudantes = {
-  todos: async (sql: Sql) => (await sql.rows<Student>(`${ESTUDANTE} ORDER BY e.id`)).map(limpar),
+  todos: async (sql: Sql) => (await sql.rows<Student>(`${SQL_ESTUDANTE} ORDER BY e.id`)).map(limpar),
   porId: async (sql: Sql, id: string) =>
-    (await sql.rows<Student>(`${ESTUDANTE} WHERE e.id = $1`, [id])).map(limpar)[0],
+    (await sql.rows<Student>(`${SQL_ESTUDANTE} WHERE e.id = $1`, [id])).map(limpar)[0],
   /** Só quem aparece na vitrine: perfil com ao menos uma competência. */
   visiveis: async (sql: Sql) =>
     (await sql.rows<Student>(
-      `${ESTUDANTE} WHERE EXISTS (SELECT 1 FROM estudante_competencia ec WHERE ec.estudante_id = e.id) ORDER BY e.id`,
+      `${SQL_ESTUDANTE} WHERE EXISTS (SELECT 1 FROM estudante_competencia ec WHERE ec.estudante_id = e.id) ORDER BY e.id`,
     )).map(limpar),
 };
 
@@ -156,18 +156,18 @@ export const solicitantes = {
 };
 
 export const demandas = {
-  todas: async (sql: Sql) => (await sql.rows<Demand>(`${DEMANDA} ORDER BY d.enviada_em DESC`)).map(limpar),
-  porId: async (sql: Sql, id: string) => (await sql.rows<Demand>(`${DEMANDA} WHERE d.id = $1`, [id])).map(limpar)[0],
+  todas: async (sql: Sql) => (await sql.rows<Demand>(`${SQL_DEMANDA} ORDER BY d.enviada_em DESC`)).map(limpar),
+  porId: async (sql: Sql, id: string) => (await sql.rows<Demand>(`${SQL_DEMANDA} WHERE d.id = $1`, [id])).map(limpar)[0],
 };
 
 export const interesses = {
-  todos: async (sql: Sql) => (await sql.rows<Interest>(`${INTERESSE} ORDER BY i.criado_em DESC`)).map(limpar),
+  todos: async (sql: Sql) => (await sql.rows<Interest>(`${SQL_INTERESSE} ORDER BY i.criado_em DESC`)).map(limpar),
   porId: async (sql: Sql, id: string) =>
-    (await sql.rows<Interest>(`${INTERESSE} WHERE i.id = $1`, [id])).map(limpar)[0],
+    (await sql.rows<Interest>(`${SQL_INTERESSE} WHERE i.id = $1`, [id])).map(limpar)[0],
   /** Substitui a varredura que procurava o par ativo em memória. */
   ativoDoPar: async (sql: Sql, demandaId: string, estudanteId: string) =>
     (await sql.rows<Interest>(
-      `${INTERESSE} WHERE i.demanda_id = $1 AND i.estudante_id = $2
+      `${SQL_INTERESSE} WHERE i.demanda_id = $1 AND i.estudante_id = $2
          AND i.status NOT IN ('recusado_estudante','recusado_solicitante')`,
       [demandaId, estudanteId],
     )).map(limpar)[0],
