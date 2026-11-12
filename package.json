@@ -11,13 +11,12 @@
     "preview": "vite preview",
     "start": "node --env-file-if-exists=.env build/server.mjs",
     "typecheck": "tsc --noEmit && tsc -p server/tsconfig.json --noEmit",
-    "test": "tsx --test server/tests/*.test.ts",
+    "test": "tsx --test --test-concurrency=1 server/tests/*.test.ts",
     "db:init": "node scripts/pg-dev.mjs init",
     "db:up": "node scripts/pg-dev.mjs start",
     "db:down": "node scripts/pg-dev.mjs stop",
     "db:migrate": "tsx --env-file-if-exists=.env server/db/setup.ts",
     "db:seed": "tsx --env-file-if-exists=.env server/db/seed-cli.ts",
-    "db:backup": "node --env-file-if-exists=.env scripts/backup-database.mjs",
     "curator:create": "tsx --env-file-if-exists=.env server/create-curator.ts"
   },
   "dependencies": {

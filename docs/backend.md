@@ -15,8 +15,8 @@ pnpm dev
 
 O comando inicia a API em `http://127.0.0.1:3001` e o frontend em
 `http://localhost:5173`. Abra **localhost**, conforme `APP_ORIGIN`.
-O proxy do Vite encaminha `/api` ao servidor. O banco é criado automaticamente
-em `var/vitrineic.sqlite`. Sem carga de exemplos, ele começa vazio.
+O proxy do Vite encaminha `/api` ao servidor. O esquema é aplicado na subida;
+sem carga de exemplos, o banco começa vazio.
 
 ```powershell
 pnpm typecheck
@@ -24,6 +24,9 @@ pnpm test
 pnpm build
 pnpm start
 ```
+
+Os testes usam o banco `vitrineic_test`, criado junto pelo `pnpm db:init`, e
+rodam em série porque o compartilham. `TEST_DATABASE_URL` aponta outro destino.
 
 `pnpm start` serve API e `dist/` na mesma porta, 3001 por padrão. Para testar
 esse modo localmente, configure `APP_ORIGIN=http://localhost:3001`.
@@ -100,11 +103,6 @@ O app consulta `/api/state` a cada 30 s com a aba visível
 enquanto alguém estiver com o site aberto. Em plano gratuito com horas de
 compute medidas, isso consome cota — ver `docs/mapa-de-queries.md`.
 
-> **Migração em andamento.** O app ainda é servido pelo SQLite
-> (`DATABASE_PATH`). A fundação PostgreSQL — conexão, migrações, esquema e
-> catálogos — já está no lugar; as leituras e escritas das rotas ainda não
-> foram portadas. Enquanto isso, as duas variáveis convivem no `.env`.
-
 ## Dados fictícios e curadoria
 
 Para uma demonstração, configure **DEMO_MODE=true** no `.env`, com
@@ -137,8 +135,8 @@ Crie curadores administrativamente, sem cadastro público:
 ## Arquitetura
 
 - **Fastify + TypeScript**: API, cookies, limites de requisição e uploads.
-- **SQLite (`node:sqlite`)**: arquivo persistente, WAL, chaves estrangeiras,
-  índices e transações. Não exige instalar um servidor de banco separado.
+- **PostgreSQL (`pg`)**: esquema relacional em 3FN, chaves estrangeiras e
+  restrições no banco, migrações versionadas em `server/db/migrations/`.
 - **Zod**: validação no servidor, campos desconhecidos rejeitados e limites de tamanho.
 - **Nodemailer**: entrega por SMTP com TLS ou arquivos locais de desenvolvimento.
 - **React**: `src/lib/store.ts` é cache das respostas. `auth.ts` usa a API;
@@ -361,7 +359,7 @@ O serviço agora precisa de processo Node e **disco persistente**. Configure:
 NODE_ENV=production
 HOST=0.0.0.0
 APP_ORIGIN=https://seu-dominio
-DATABASE_PATH=/data/vitrineic.sqlite
+DATABASE_URL=postgresql://usuario:senha@host:5432/vitrineic?sslmode=verify-full
 DEMO_MODE=false
 MAIL_MODE=smtp
 MAIL_FROM=seu-remetente@seu-dominio
@@ -378,13 +376,13 @@ Na Railway, monte um volume em `/data`, defina as variáveis acima e use
 plataforma. Crie o primeiro curador usando o banco desse ambiente. Não carregue
 o banco de demonstração. O frontend e a API devem ficar na **mesma origem**.
 
-SQLite atende esta implantação com uma instância e volume local. Para múltiplas
+PostgreSQL atende esta implantação. Para múltiplas
 réplicas ou maior volume, migre a camada `server/database.ts` para PostgreSQL e
 os anexos para armazenamento de objetos. O rate limit atual fica na memória de
 cada processo; o servidor não confia em `X-Forwarded-For` enviado pelo cliente.
 Atrás de proxy, configure também os limites de tráfego do provedor.
 
-Faça backup consistente com o servidor parado (ou use a API de backup do SQLite).
+Faça backup com `pg_dump` e restaure com `pg_restore`.
 Não copie apenas o arquivo principal enquanto houver escrita em modo WAL.
 O comando `pnpm db:backup`, com `DATABASE_PATH` e `BACKUP_PATH`, gera um snapshot
 consistente com `VACUUM INTO`, incluindo anexos, mesmo com WAL em uso.

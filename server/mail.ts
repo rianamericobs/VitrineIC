@@ -49,9 +49,12 @@ export function createMailer(config: MailConfig, request: typeof fetch = fetch):
 export class MailQueue {
   private tasks = new Set<Promise<void>>();
   constructor(private mailer: Mailer) {}
-  enqueue(message: MailMessage, onFailure: () => void) {
-    if (this.tasks.size >= 100) { try { onFailure(); } catch { /* Limite da fila. */ } return; }
-    const task = new Promise<void>(resolve => setImmediate(resolve)).then(() => this.mailer.send(message)).catch(() => { try { onFailure(); } catch { /* A entrega nunca gera uma rejeição não tratada. */ } });
+  /** `onFailure` pode ser assíncrono: `drain` espera também a compensação. */
+  enqueue(message: MailMessage, onFailure: () => void | Promise<void>) {
+    if (this.tasks.size >= 100) { void Promise.resolve().then(onFailure).catch(() => { /* Limite da fila. */ }); return; }
+    const task = new Promise<void>(resolve => setImmediate(resolve))
+      .then(() => this.mailer.send(message))
+      .catch(async () => { try { await onFailure(); } catch { /* A entrega nunca gera uma rejeição não tratada. */ } });
     this.tasks.add(task);
     void task.finally(() => this.tasks.delete(task));
   }

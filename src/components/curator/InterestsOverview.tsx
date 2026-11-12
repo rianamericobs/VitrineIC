@@ -7,6 +7,7 @@ import { InterestStatusPill } from "@/components/app/InterestStatusPill";
 import { PageHead } from "@/components/public/PageHead";
 import { PAGE } from "@/components/public/layout";
 import type { InterestOrigin } from "@/types";
+import { comoDecorrido } from "@/lib/datas";
 
 const ORIGINS: ("todas" | InterestOrigin)[] = ["todas", "candidatura", "convite", "sugestao"];
 
@@ -61,7 +62,7 @@ export function InterestsOverview() {
                     {student.name} <span className="text-navy/45">→</span> {demand.title}
                   </p>
                   <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-navy/50">
-                    {ORIGIN_LABEL[i.origin]} · {demand.company} · {i.createdAt}
+                    {ORIGIN_LABEL[i.origin]} · {demand.company} · {comoDecorrido(i.createdAt)}
                   </p>
                   {i.refusalReason && (
                     <p className="mt-1 font-sans text-[13px] text-navy/60">Motivo da recusa: {i.refusalReason}</p>

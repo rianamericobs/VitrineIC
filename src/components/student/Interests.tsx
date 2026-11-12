@@ -11,6 +11,7 @@ import { Eyebrow } from "@/components/public/Eyebrow";
 import { PageHead } from "@/components/public/PageHead";
 import { PAGE } from "@/components/public/layout";
 import type { Demand, Interest, InterestStatus } from "@/types";
+import { comoDecorrido, paraExibicao } from "@/lib/datas";
 
 /** Perfil do solicitante: dados da empresa e as demandas aprovadas que ela publicou. */
 function CompanyModal({ name, demands, onClose }: { name: string; demands: Demand[]; onClose: () => void }) {
@@ -101,13 +102,13 @@ function InterestCard({ interest, demand, demands }: { interest: Interest; deman
           <span>
             {ORIGIN_LABEL[interest.origin]} · {demand.id}
           </span>
-          <span>{interest.createdAt}</span>
+          <span>{comoDecorrido(interest.createdAt)}</span>
         </div>
         <h2 className="font-display text-2xl font-medium leading-[1.2] tracking-[-0.02em] text-offwhite md:text-[28px]">
           {demand.title}
         </h2>
         <p className="font-sans text-sm text-offwhite/70">
-          {demand.company} · {demand.area} · prazo {demand.deadline}
+          {demand.company} · {demand.area} · prazo {paraExibicao(demand.deadline)}
         </p>
         <button
           onClick={() => setShowCompany(true)}

@@ -4,7 +4,7 @@ import type { StoredAccount } from "./types";
 import type { Attachment, ImpactStats, Notification, VitrineState } from "@/types/api";
 import type { Demand, Interest, Student } from "@/types";
 import type { Company } from "@/data/companies";
-import { SQL_DEMANDA, SQL_ESTUDANTE, SQL_INTERESSE, contas, limpar, solicitantes } from "./repositories";
+import { SQL_DEMANDA, SQL_ESTUDANTE, SQL_INTERESSE, comoEstudante, contas, limpar, solicitantes } from "./repositories";
 import { visibleToRequester } from "@/lib/interest";
 
 /**
@@ -85,7 +85,7 @@ async function lerNotificacoes(sql: Sql, conta: StoredAccount): Promise<Notifica
     SELECT
       n.id, n.tipo AS type,
       COALESCE(rem.nome, 'VitrineIC')            AS "from",
-      COALESCE(d.titulo, '')                     AS project,
+      COALESCE(d.titulo, n.assunto, '')          AS project,
       to_char(n.criada_em, 'YYYY-MM-DD"T"HH24:MI:SS.MSZ') AS time,
       (n.lida_em IS NULL)                        AS unread,
       COALESCE(n.conteudo, m.conteudo, '')       AS content,
@@ -122,7 +122,7 @@ export async function snapshot(sql: Sql, config: Config, conta?: StoredAccount):
       OR e.id = $1
       OR e.id = ANY($2::text[])
     )
-    ORDER BY e.id`, [proprioEstudante, idsDeEstudantes])).map(limpar);
+    ORDER BY e.id`, [proprioEstudante, idsDeEstudantes])).map(comoEstudante);
 
   const demandas = (await sql.rows<Demand>(`
     ${SQL_DEMANDA}

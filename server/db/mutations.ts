@@ -225,13 +225,13 @@ export async function criarMensagem(sql: Sql, interesseId: string, remetenteCont
 
 export async function criarNotificacao(sql: Sql, dados: {
   destinatarioContaId: string; tipo: "SISTEMA" | "MENSAGEM";
-  demandaId?: string; interesseId?: string; mensagemId?: string; conteudo?: string;
+  demandaId?: string; interesseId?: string; mensagemId?: string; assunto?: string; conteudo?: string;
 }) {
   await sql.run(
-    `INSERT INTO notificacao (destinatario_conta_id, tipo, demanda_id, interesse_id, mensagem_id, conteudo)
-     VALUES ($1,$2,$3,$4,$5,$6)`,
+    `INSERT INTO notificacao (destinatario_conta_id, tipo, demanda_id, interesse_id, mensagem_id, assunto, conteudo)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)`,
     [dados.destinatarioContaId, dados.tipo, dados.demandaId ?? null,
-     dados.interesseId ?? null, dados.mensagemId ?? null, dados.conteudo ?? null],
+     dados.interesseId ?? null, dados.mensagemId ?? null, dados.assunto ?? null, dados.conteudo ?? null],
   );
 }
 

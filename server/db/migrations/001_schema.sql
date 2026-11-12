@@ -290,6 +290,8 @@ CREATE TABLE notificacao (
   demanda_id             text REFERENCES demanda(id) ON DELETE CASCADE,
   interesse_id           text REFERENCES interesse(id) ON DELETE CASCADE,
   mensagem_id            uuid REFERENCES mensagem(id) ON DELETE CASCADE,
+  -- Assunto proprio do aviso de sistema, quando nao ha demanda associada.
+  assunto                text,
   conteudo               text,
   criada_em              timestamptz NOT NULL DEFAULT now(),
   lida_em                timestamptz,

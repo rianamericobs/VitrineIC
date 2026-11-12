@@ -14,10 +14,8 @@ export interface MailConfig {
 }
 
 export interface Config {
-  /** PostgreSQL: destino da migração, usado por `pnpm db:migrate`. */
+  /** Conexão PostgreSQL. */
   databaseUrl: string;
-  /** SQLite: ainda serve o app enquanto as rotas não são portadas. */
-  databasePath: string;
   origin: string;
   production: boolean;
   demo: boolean;
@@ -62,7 +60,6 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const port = z.coerce.number().int().min(1).max(65535).parse(env.SMTP_PORT ?? 587);
   return {
     databaseUrl: readDatabaseUrl(env, production),
-    databasePath: env.DATABASE_PATH ?? "./var/vitrineic.sqlite",
     origin: new URL(origin).origin,
     production,
     demo: !production && env.DEMO_MODE === "true",

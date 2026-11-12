@@ -9,6 +9,7 @@ import { Eyebrow } from "@/components/public/Eyebrow";
 import { PageHead } from "@/components/public/PageHead";
 import { PAGE } from "@/components/public/layout";
 import type { Demand, Student } from "@/types";
+import { paraExibicao } from "@/lib/datas";
 
 function Meta({ demand }: { demand: Demand }) {
   return (
@@ -20,7 +21,7 @@ function Meta({ demand }: { demand: Demand }) {
       <span aria-hidden="true">·</span>
       <span className="flex items-center gap-1.5">
         <ClockIcon />
-        prazo {demand.deadline}
+        prazo {paraExibicao(demand.deadline)}
       </span>
     </p>
   );
@@ -124,7 +125,7 @@ export function Opportunities({
               {[
                 ["Quem pede", selected.company],
                 ["Duração prevista", selected.scope],
-                ["Prazo", selected.deadline],
+                ["Prazo", paraExibicao(selected.deadline)],
               ].map(([label, value]) => (
                 <div key={label}>
                   <dt className="font-mono text-[10px] uppercase tracking-[0.08em] text-navy/55">{label}</dt>

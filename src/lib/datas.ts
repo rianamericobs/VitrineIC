@@ -52,3 +52,23 @@ export function paraExibicao(valor?: string): string {
   if (!iso) return texto;
   return `${Number(iso[3])} ${MESES[Number(iso[2]) - 1]} ${iso[1]}`;
 }
+
+/**
+ * "há 2h" a partir de um timestamp. O banco guarda o instante; o quanto faz é
+ * calculado na hora de mostrar, senão o rótulo envelhece junto com a linha.
+ */
+export function comoDecorrido(valor?: string, agora: Date = new Date()): string {
+  const texto = valor?.trim() ?? "";
+  if (!/^\d{4}-\d{2}-\d{2}/.test(texto)) return texto;
+  const quando = new Date(texto.length === 10 ? `${texto}T00:00:00Z` : texto);
+  if (Number.isNaN(quando.getTime())) return texto;
+
+  const minutos = Math.max(0, Math.round((agora.getTime() - quando.getTime()) / 60_000));
+  if (minutos < 1) return "agora";
+  if (minutos < 60) return `há ${minutos}min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `há ${horas}h`;
+  const dias = Math.floor(horas / 24);
+  if (dias < 30) return `há ${dias}d`;
+  return paraExibicao(quando.toISOString());
+}

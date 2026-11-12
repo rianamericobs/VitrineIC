@@ -1,12 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildApp } from "../app";
-import { hashPassword, tokenHash } from "../security";
+import { tokenHash } from "../security";
+import { configDeTeste, criarConta, prepararBanco } from "./apoio";
 
 const headers = { "x-vitrine-client": "web", origin: "http://localhost:5173" };
 
 test("anexos privados: upload, formato, isolamento, download e exclusão", async t => {
-  const { app, db } = await buildApp({ databasePath: ":memory:", logger: false });
+  const limpo = await prepararBanco();
+  await limpo.close();
+  const { app } = await buildApp(configDeTeste());
   t.after(() => app.close());
   const signup = await app.inject({ method: "POST", url: "/api/auth/students", headers, payload: { name: "Aluno", email: "files@ic.ufal.br", password: "teste12345", unit: "IC", course: "Ciência da Computação", consent: true } });
   const cookie = String(signup.headers["set-cookie"]).split(";")[0];
@@ -32,9 +35,14 @@ test("anexos privados: upload, formato, isolamento, download e exclusão", async
 });
 
 test("cookies Secure em produção, expiração e rotação de sessão", async t => {
-  const { app, db } = await buildApp({ databasePath: ":memory:", logger: false, production: true, origin: "https://vitrine.example" });
+  const limpo = await prepararBanco();
+  await criarConta(limpo, {
+    id: "curator", name: "Curadoria", role: "curator",
+    email: "curator@example.com", senha: "curator12345", createdAt: "2026-01-01",
+  });
+  await limpo.close();
+  const { app, db } = await buildApp(configDeTeste({ production: true, origin: "https://vitrine.example" }));
   t.after(() => app.close());
-  db.put("accounts", { id: "curator", name: "Curadoria", role: "curator", profileId: "", createdAt: "2026-01-01", email: "curator@example.com", passwordHash: await hashPassword("curator12345") });
   const login = (cookie?: string) => app.inject({ method: "POST", url: "/api/auth/login", headers: { ...headers, origin: "https://vitrine.example", ...(cookie ? { cookie } : {}) }, payload: { email: "curator@example.com", password: "curator12345" } });
   const first = await login();
   assert.match(String(first.headers["set-cookie"]), /; Secure/);
@@ -44,7 +52,8 @@ test("cookies Secure em produção, expiração e rotação de sessão", async t
   assert.notEqual(firstCookie, secondCookie);
   assert.equal((await app.inject({ url: "/api/auth/me", headers: { cookie: firstCookie } })).statusCode, 401);
   const rawToken = secondCookie.split("=")[1];
-  assert.equal(db.sql.prepare("SELECT token_hash FROM sessions").get()!.token_hash, tokenHash(rawToken));
-  db.sql.prepare("UPDATE sessions SET expires_at=0").run();
+  const sessao = await db.sql.row<{ token_hash: string }>("SELECT token_hash FROM sessao");
+  assert.equal(sessao!.token_hash, tokenHash(rawToken));
+  await db.sql.run("UPDATE sessao SET expira_em = now() - interval '1 hour'");
   assert.equal((await app.inject({ url: "/api/auth/me", headers: { cookie: secondCookie } })).statusCode, 401);
 });

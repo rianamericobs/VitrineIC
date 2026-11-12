@@ -1,12 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, dirname } from "node:path";
 import type { FastifyInstance, InjectOptions } from "fastify";
 import { buildApp } from "../app";
-import { hashPassword } from "../security";
-import { seedDemo } from "../seed-data";
+import { seedDemo } from "../db/seed";
+import { contas } from "../db/repositories";
+import { configDeTeste, criarConta, prepararBanco } from "./apoio";
 import type { VitrineState } from "@/types/api";
 import type { Demand, Interest } from "@/types";
 
@@ -17,9 +15,14 @@ const demandData = { title: "Projeto de teste", description: "Uma demanda real d
 const cookieOf = (response: { headers: Record<string, unknown> }) => String(response.headers["set-cookie"]).split(";")[0];
 const request = (app: FastifyInstance, method: InjectOptions["method"], url: string, payload?: object, cookie?: string) => app.inject({ method, url, payload, headers: { ...headers, ...(cookie ? { cookie } : {}) } });
 
-async function setup(path = ":memory:") {
-  const built = await buildApp({ databasePath: path, logger: false, demo: false, production: false });
-  built.db.put("accounts", { id: "curator-test", email: "curator@example.com", passwordHash: await hashPassword("curator12345"), name: "Curadoria", role: "curator", profileId: "", createdAt: new Date().toISOString() });
+async function setup() {
+  const limpo = await prepararBanco();
+  await criarConta(limpo, {
+    id: "curator-test", email: "curator@example.com", senha: "curator12345",
+    name: "Curadoria", role: "curator",
+  });
+  await limpo.close();
+  const built = await buildApp(configDeTeste({ demo: false, production: false }));
   const student = await request(built.app, "POST", "/api/auth/students", studentData);
   assert.equal(student.statusCode, 201, student.body);
   const requester = await request(built.app, "POST", "/api/auth/requesters", requesterData);
@@ -54,7 +57,7 @@ test("cadastro, autenticação, privacidade e autorização", async t => {
   assert.equal(visible.students[0].email, "");
   assert.equal(visible.students[0].matricula, undefined);
   assert.equal(visible.companies[0].contactEmail, "");
-  const account = c.db.all("accounts").find(a => a.role === "student")!;
+  const account = (await contas.porEmail(c.db.sql, studentData.email))!;
   assert.ok(account.passwordHash.startsWith("scrypt:"));
   assert.ok(!JSON.stringify(account).includes(studentData.password));
   const logout = await request(c.app, "POST", "/api/auth/logout", undefined, c.studentCookie);
@@ -133,21 +136,16 @@ test("candidatura, convite, recusa privada e validação de perfil", async t => 
 });
 
 test("projetos, perfis e sessões sobrevivem ao reinício", async t => {
-  const folder = mkdtempSync(join(tmpdir(), "vitrine-test-"));
-  const path = join(folder, "db.sqlite");
-  const c = await setup(path);
+  const c = await setup();
   const project = { title: "Portfólio", description: "Projeto persistente", status: "coding", stack: ["React"], year: "2026", area: "Software", link: "https://example.com" };
   assert.equal((await request(c.app, "POST", "/api/projects", { ...project, link: "javascript:alert(1)" }, c.studentCookie)).statusCode, 400);
   assert.equal((await request(c.app, "POST", "/api/projects", project, c.requesterCookie)).statusCode, 403);
   assert.equal((await request(c.app, "POST", "/api/projects", project, c.studentCookie)).statusCode, 201);
   await request(c.app, "PATCH", `/api/students/${c.studentId}`, { skills: ["React"], inProject: true }, c.studentCookie);
   await c.app.close();
-  const reopened = await buildApp({ databasePath: path, logger: false, production: false });
-  t.after(async () => {
-    await reopened.app.close();
-    assert.equal(dirname(folder), tmpdir());
-    rmSync(folder, { recursive: true, force: true });
-  });
+  // Reabre contra o mesmo banco: o estado tem de sobreviver ao reinício.
+  const reopened = await buildApp(configDeTeste({ production: false }));
+  t.after(() => reopened.app.close());
   const state = (await request(reopened.app, "GET", "/api/auth/me", undefined, c.studentCookie)).json<VitrineState>();
   assert.equal(state.students[0].projects[0].title, "Portfólio");
   assert.equal(state.inProject[c.studentId], true);
@@ -157,10 +155,12 @@ test("projetos, perfis e sessões sobrevivem ao reinício", async t => {
 });
 
 test("CSRF, limite de login, seed explícito e cookie seguro", async t => {
-  const { app, db } = await buildApp({ databasePath: ":memory:", logger: false, demo: true });
+  const limpo = await prepararBanco();
+  await limpo.close();
+  const { app, db } = await buildApp(configDeTeste({ demo: true }));
   t.after(() => app.close());
-  await seedDemo(db);
-  await assert.rejects(seedDemo(db), /banco vazio/);
+  await db.transaction(seedDemo);
+  await assert.rejects(db.transaction(seedDemo), /banco vazio/);
   assert.equal((await app.inject({ method: "POST", url: "/api/auth/login", payload: {} })).statusCode, 403);
   assert.equal((await app.inject({ method: "POST", url: "/api/auth/login", payload: {}, headers: { ...headers, origin: "https://evil.example" } })).statusCode, 403);
   const login = await request(app, "POST", "/api/auth/login", { email: "estudante@ic.ufal.br", password: "demo1234" });

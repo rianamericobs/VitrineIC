@@ -13,6 +13,7 @@ import { BackButton } from "@/components/public/BackButton";
 import { Eyebrow } from "@/components/public/Eyebrow";
 import { PAGE } from "@/components/public/layout";
 import type { Demand, Interest, Student } from "@/types";
+import { paraExibicao } from "@/lib/datas";
 
 
 /** Caixinhas de critério do Figma, com o que o algoritmo de fato considera. */
@@ -236,8 +237,8 @@ export function Matchmaking({
               {[
                 { label: "Área", val: demand.area },
                 { label: "Escopo", val: demand.scope },
-                { label: "Prazo", val: demand.deadline },
-                { label: "Enviado em", val: demand.submitted },
+                { label: "Prazo", val: paraExibicao(demand.deadline) },
+                { label: "Enviado em", val: paraExibicao(demand.submitted) },
               ].map((r) => (
                 <div key={r.label} className="flex items-baseline justify-between gap-3 py-2.5">
                   <dt className="font-mono text-[10px] uppercase tracking-[0.08em] text-navy/55">{r.label}</dt>

@@ -1,20 +1,36 @@
-import { randomUUID } from "node:crypto";
-import type { Database } from "./database";
+import type { Sql } from "./db/pool";
 import type { Interest } from "@/types";
+import { contas, demandas } from "./db/repositories";
+import { criarNotificacao } from "./db/mutations";
 import { visibleToRequester } from "@/lib/interest";
 
-export function notify(db: Database, accountId: string, project: string, content: string, interestId?: string, from = "VitrineIC", senderId?: string) {
-  db.put("notifications", { id: randomUUID(), accountId, type: senderId ? "MENSAGEM" : "SISTEMA", from, project, content, interestId, senderId, time: new Date().toISOString(), unread: true });
-}
+/**
+ * Notificação do sistema. O título da demanda e o nome de quem envia não são
+ * copiados para cá: saem por junção na leitura, em `server/db/snapshot.ts`.
+ */
+export const notificar = (
+  sql: Sql, contaId: string, assunto: string, conteudo: string, demandaId?: string, interesseId?: string,
+) => criarNotificacao(sql, {
+  destinatarioContaId: contaId, tipo: "SISTEMA",
+  // Com demanda, o título sai por junção; sem ela, o aviso traz o próprio assunto.
+  assunto: demandaId ? undefined : assunto,
+  conteudo, demandaId, interesseId,
+});
 
-export function notifyInterest(db: Database, interest: Interest) {
-  const demand = db.get("demands", interest.demandId)!;
-  const accounts = db.all("accounts");
-  const student = accounts.find(a => a.role === "student" && a.profileId === interest.studentId);
-  const requester = accounts.find(a => a.role === "requester" && a.profileId === demand.company);
-  const text = interest.status === "contato_liberado" ? "Os dois lados aceitaram. Os contatos estão disponíveis na tela de interesses."
-    : interest.status.startsWith("recusado_") ? "Este interesse foi encerrado."
-    : "Você tem uma atualização de interesse. Consulte a tela de interesses para acompanhar ou responder.";
-  if (student) notify(db, student.id, demand.title, text, interest.id);
-  if (requester && visibleToRequester(interest)) notify(db, requester.id, demand.title, text, interest.id);
+/** Avisa os dois lados de um interesse, respeitando o que cada um pode ver. */
+export async function notificarInteresse(sql: Sql, interesse: Interest) {
+  const demanda = (await demandas.porId(sql, interesse.demandId))!;
+  const texto = interesse.status === "contato_liberado"
+    ? "Os dois lados aceitaram. Os contatos estão disponíveis na tela de interesses."
+    : interesse.status.startsWith("recusado_")
+      ? "Este interesse foi encerrado."
+      : "Você tem uma atualização de interesse. Consulte a tela de interesses para acompanhar ou responder.";
+
+  const estudante = await contas.doEstudante(sql, interesse.studentId);
+  if (estudante) await notificar(sql, estudante.id, demanda.title, texto, demanda.id, interesse.id);
+
+  const solicitante = await contas.doSolicitante(sql, demanda.company);
+  if (solicitante && visibleToRequester(interesse)) {
+    await notificar(sql, solicitante.id, demanda.title, texto, demanda.id, interesse.id);
+  }
 }

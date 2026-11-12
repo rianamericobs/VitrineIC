@@ -131,6 +131,15 @@ const CONTA = `
   LEFT JOIN solicitante s ON s.conta_id = c.id
 `;
 
+/** Derivado do nome; não é coluna, para não guardar o que dá para calcular. */
+export const iniciais = (nome: string) => {
+  const partes = (nome ?? "").trim().split(/\s+/).filter(Boolean);
+  if (!partes.length) return "";
+  return `${partes[0][0]}${partes.length > 1 ? partes[partes.length - 1][0] : ""}`.toUpperCase();
+};
+
+export const comoEstudante = (linha: Student) => ({ ...limpar(linha), initials: iniciais(linha.name) });
+
 /** O driver devolve `null` onde o tipo do domínio espera campo ausente. */
 export function limpar<T extends object>(linha: T): T {
   for (const [chave, valor] of Object.entries(linha)) {
@@ -140,14 +149,14 @@ export function limpar<T extends object>(linha: T): T {
 }
 
 export const estudantes = {
-  todos: async (sql: Sql) => (await sql.rows<Student>(`${SQL_ESTUDANTE} ORDER BY e.id`)).map(limpar),
+  todos: async (sql: Sql) => (await sql.rows<Student>(`${SQL_ESTUDANTE} ORDER BY e.id`)).map(comoEstudante),
   porId: async (sql: Sql, id: string) =>
-    (await sql.rows<Student>(`${SQL_ESTUDANTE} WHERE e.id = $1`, [id])).map(limpar)[0],
+    (await sql.rows<Student>(`${SQL_ESTUDANTE} WHERE e.id = $1`, [id])).map(comoEstudante)[0],
   /** Só quem aparece na vitrine: perfil com ao menos uma competência. */
   visiveis: async (sql: Sql) =>
     (await sql.rows<Student>(
       `${SQL_ESTUDANTE} WHERE EXISTS (SELECT 1 FROM estudante_competencia ec WHERE ec.estudante_id = e.id) ORDER BY e.id`,
-    )).map(limpar),
+    )).map(comoEstudante),
 };
 
 export const solicitantes = {
