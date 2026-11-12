@@ -110,7 +110,8 @@ CREATE INDEX token_conta_expira ON token_conta(expira_em);
 
 CREATE TABLE estudante (
   id                 text PRIMARY KEY,
-  conta_id           text UNIQUE REFERENCES conta(id) ON DELETE CASCADE,
+  -- Perfil sem conta nao existe: nome e e-mail vivem em conta.
+  conta_id           text NOT NULL UNIQUE REFERENCES conta(id) ON DELETE CASCADE,
   curso_id           uuid REFERENCES curso(id),
   matricula          text CHECK (matricula ~ '^[0-9]{0,30}$'),
   semestre           text,
@@ -186,7 +187,7 @@ CREATE INDEX anexo_estudante_estudante ON anexo_estudante(estudante_id);
 
 CREATE TABLE solicitante (
   id               text PRIMARY KEY,
-  conta_id         text UNIQUE REFERENCES conta(id) ON DELETE CASCADE,
+  conta_id         text NOT NULL UNIQUE REFERENCES conta(id) ON DELETE CASCADE,
   nome             text NOT NULL UNIQUE,
   tipo_codigo      text NOT NULL REFERENCES tipo_solicitante(codigo),
   rotulo_exibicao  text,
