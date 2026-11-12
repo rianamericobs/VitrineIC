@@ -53,7 +53,9 @@ pnpm db:up        # sobe
 pnpm db:down      # derruba
 ```
 
-`var/` é ignorado pelo git, então o cluster não vai para o repositório. Para
+`var/` é ignorado pelo git, então o cluster não vai para o repositório. Sem
+`DATABASE_URL` no ambiente, o servidor e os testes usam esse cluster por
+padrão — `server/tests/repositories.test.ts` precisa dele no ar. Para
 usar um PostgreSQL seu ou um banco hospedado, ignore estes comandos e aponte a
 `DATABASE_URL` para onde quiser — `pnpm db:migrate` funciona igual.
 

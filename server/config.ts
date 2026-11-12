@@ -34,7 +34,8 @@ function readDatabaseUrl(env: NodeJS.ProcessEnv, production: boolean): string {
   const url = env.DATABASE_URL?.trim();
   if (!url) {
     if (production) throw new Error("Configure DATABASE_URL com a conexão PostgreSQL em produção.");
-    return "postgresql://vitrineic:vitrineic@localhost:5432/vitrineic";
+    // Cluster de desenvolvimento do próprio projeto; ver scripts/pg-dev.mjs.
+    return "postgresql://vitrineic:vitrineic@localhost:5433/vitrineic";
   }
   const parsed = new URL(url);
   if (!["postgres:", "postgresql:"].includes(parsed.protocol)) {
